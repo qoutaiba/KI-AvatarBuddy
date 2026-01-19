@@ -1,0 +1,27 @@
+
+.user-message {
+  align-self: flex-end;       
+  background-color: #cce5ff;
+  padding: 8px;
+  border-radius: 8px;
+  max-width: 70%;            
+  word-wrap: break-word;     
+  white-space: pre-wrap;    
+  color:#000000
+}
+
+.ai-message {
+  align-self: flex-start;   
+  background-color: #e6e6e6;
+  padding: 8px;
+  border-radius: 8px;
+  max-width: 70%;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  color:#000000;
+}
+
+.timestamp {
+  font-size: 0.75rem;      /* kleiner */
+  color: #888;             /* grau */
+}

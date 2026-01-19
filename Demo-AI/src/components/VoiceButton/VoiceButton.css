@@ -1,0 +1,67 @@
+.voice-button {
+  padding: 10px;
+  font-size: 18px;
+  border-radius: 50%;
+  border: 2px solid #6b4a2b;
+  background-color: #f0f0f0;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.voice-button:hover {
+  background-color: #ddd;
+}
+
+.voice-button.active {
+  background-color: #ffcccc;
+  border-color: red;
+}
+
+.voice-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.voice-button:active {
+  transform: scale(0.98);
+}
+
+.voice-button {
+  width: 44px;
+  height: 44px;
+  border-radius: 999px;
+  border: none;
+  background: #111827; /* neutral */
+  cursor: pointer;
+  transition: transform 120ms ease, box-shadow 160ms ease;
+}
+
+.voice-button:disabled {
+  cursor: default;
+  opacity: 0.6; /* ruhig & neutral */
+}
+
+/* kurzer Ready-Hinweis */
+.voice-button.ready-flash {
+  animation: readyGlow 0.8s ease-out 1;
+}
+
+@keyframes readyGlow {
+  0% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+  30% {
+    box-shadow: 0 0 18px rgba(34, 197, 94, 0.9);
+  }
+  100% {
+    box-shadow: 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+.voice-button.active {
+  transform: scale(1.02);
+}

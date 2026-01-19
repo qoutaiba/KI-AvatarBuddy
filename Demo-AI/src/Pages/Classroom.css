@@ -1,0 +1,51 @@
+.classroom {
+  width: 100vw;
+  height: 100vh;
+
+  display: flex;
+
+  background: linear-gradient(
+    to bottom,
+    #f3ead7 0%,
+    #f3ead7 78%,
+    #d6c2a1 78%,
+    #d6c2a1 100%
+  );
+}
+
+
+.left {
+  width: 30%;
+  min-width: 320px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  
+}
+
+
+.middle {
+  width: 60%;
+  height: 100vh;
+
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+
+  padding-top: 5%;  
+  padding-left:10%; 
+}
+
+
+.right {
+  width: 100vw;
+  height: 100vh;              
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+
+  padding-top: 5%;
+  padding-right: 0.1%;
+
+}
+

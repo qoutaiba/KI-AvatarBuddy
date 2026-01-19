@@ -1,0 +1,12 @@
+services:
+  tts:
+    build: .
+    ports:
+      - "5179:5179"
+    environment:
+      - PORT=5179
+      - PIPER_DIR=/app/src/piper
+      - OUT_DIR=/app/src/tts-out
+      - PIPER_VOICE=de_DE-kerstin-low
+    volumes:
+      - ./piper:/app/piper:ro

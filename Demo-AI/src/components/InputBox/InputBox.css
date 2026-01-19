@@ -1,0 +1,27 @@
+.input-box {
+  display: flex;
+  gap: 10px;
+  margin-top: 10px;
+
+  width: 99%;      
+}
+
+
+.input-box input {
+  flex: 1;                   
+  padding: 10px;
+  border-radius: 6px;
+  border: 2px solid #6b4a2b;
+  box-sizing: border-box;
+}
+
+.input-box button {
+  padding: 10px 16px;
+  border-radius: 6px;
+  border: 2px solid #6b4a2b;
+  background-color: #cce5ff;
+  cursor: pointer;
+
+  flex-shrink: 0;   
+}
+
