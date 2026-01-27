@@ -1,13 +1,16 @@
 import {useState} from 'react';
 import {createTheme, CssBaseline, ThemeProvider} from '@mui/material';
-import {Login} from './Pages/Login';
-import Classroom from './Pages/Classroom';
 import type {IChatMessage} from './Interfaces/IChatMessage';
+import {Login} from "./Pages/Login.tsx";
+import Admin from "./Pages/Admin.tsx";
+import TeacherUI from "./Pages/TeacherUI.tsx";
+import Classroom from "./Pages/Classroom.tsx";
 
 type ChatType = {
     task_id: string,
     collection: string
 }
+
 
 function isChatResponse(response: unknown): response is ChatType {
     const parsed = response as ChatType;
@@ -21,7 +24,8 @@ function isChatResponse(response: unknown): response is ChatType {
 
 type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
 
-function isTaskStatus(response: TaskStatus): response is TaskStatus {
+
+function isTaskStatus(response: unknown): response is TaskStatus {
     const parsed = response as TaskStatus;
 
     return (parsed && parsed === "PENDING" || parsed == "FAILURE" || parsed == "SUCCESS");
@@ -40,19 +44,12 @@ function isArrayOf<T extends string | number>(input: unknown, type: T): input is
 function isTaskResult(input: unknown): input is TaskResult {
     const parsed = input as TaskResult;
 
-    // console.log({
-    //     isAnswer: typeof parsed.answer === "string",
-    //     isDocs: isArrayOf(parsed.documents, "string"),
-    //     isScores: isArrayOf(parsed.scores, "number")
-    // })
     return (
         parsed === undefined || (
             typeof parsed.answer === "string" &&
             isArrayOf(parsed.documents, "string") &&
             isArrayOf(parsed.scores, "number"))
-
     )
-
 }
 
 type TaskResponse = {
@@ -64,12 +61,6 @@ type TaskResponse = {
 
 function isTaskResponse(response: unknown): response is TaskResponse {
     const parsed = response as TaskResponse;
-    // console.log({
-    //     isId: typeof parsed.task_id === "string",
-    //     isStatus: isTaskStatus(parsed.status),
-    //     isError: (parsed.error === undefined || typeof parsed.error === "string"),
-    //     isTaskResult: isTaskResult(parsed.result)
-    // })
     return (
         parsed &&
         typeof parsed.task_id === "string" &&
@@ -91,7 +82,6 @@ async function fetchResponseWithRetryAndTimeout(props: { taskID: string }) {
             method: "GET"
         });
 
-        // if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
 
         const json = await response.json();
         if (!isTaskResponse(json)) throw new Error(`Expected a task response of type TaskResponse but received ${JSON.stringify(json)}`);
@@ -131,9 +121,29 @@ function App() {
 
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
 
+    type Role = "NONE" | "ADMIN" | "STUDENT" | "TEACHER"
+
+    const [role, setRole] = useState<Role | null>("NONE")
+
+
     const handleLogin = (name: string, pw: string) => {
-        setUsername(name)
-        setPassword(pw)
+        const cleanName = name.trim();
+        const cleanPassword = pw.trim();
+        setUsername(cleanName)
+
+        if (cleanName === "admin" && pw === "admin") {
+            setRole("ADMIN")
+            setPassword(cleanPassword)
+            setUsername(cleanName)
+            return;
+        }
+
+        // hier kommt später das eigentliche fetch zu dem Server.
+
+        setUsername(null)
+        setPassword(null)
+        setRole("NONE");
+
     }
 
     const handleSend = async (message: IChatMessage) => {
@@ -155,7 +165,6 @@ function App() {
         if (!task_request.ok) {
             throw new Error(`HTTP ${task_request.status} ${task_request.statusText}`);
         }
-
 
         // wait until server replays with a task_ID
         const jsonTask = (await task_request.json());
@@ -228,12 +237,22 @@ function App() {
         <ThemeProvider theme={theme}>
             <CssBaseline enableColorScheme/>
             <div className="app-container">
-                {!username || !password ? (
+                {role === "NONE" ? (
                     <Login onLogin={handleLogin}/>
+                ) : role === "ADMIN" ? (
+                    <Admin schoolClasses={null}/>
+                ) : role === "TEACHER" ? (
+                    <TeacherUI/>
                 ) : (
-                    <Classroom username={username} messages={messages} onSend={handleSend}
-                               fetchFinalResponse={fetchFinalResponse}/>
-                )}
+                    <Classroom
+                        username={username!}
+                        messages={messages}
+                        onSend={handleSend}
+                        fetchFinalResponse={fetchFinalResponse}
+                    />
+                )
+
+                }
             </div>
         </ThemeProvider>
     )
