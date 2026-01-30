@@ -146,7 +146,7 @@ const Admin: React.FC = () => {
                     sx={{mt: 2}}
                     onClick={handleAddTeacher}
                 >
-                    Teacher hinzufügen
+                    Register Teacher
                 </Button>
             </Box>
         </Box>

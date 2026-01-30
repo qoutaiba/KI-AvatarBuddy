@@ -11,6 +11,20 @@ type ChatType = {
     collection: string
 }
 
+type TaskResult = {
+    answer: string,
+    documents: string[],
+    scores: number[]
+}
+
+type TaskResponse = {
+    task_id: string,
+    status: TaskStatus,
+    error?: string,
+    result?: TaskResult
+}
+
+type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
 
 function isChatResponse(response: unknown): response is ChatType {
     const parsed = response as ChatType;
@@ -22,18 +36,10 @@ function isChatResponse(response: unknown): response is ChatType {
     );
 }
 
-type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
-
 
 function isTaskStatus(response: unknown): response is TaskStatus {
     const parsed = response as TaskStatus;
     return (parsed && parsed === "PENDING" || parsed == "FAILURE" || parsed == "SUCCESS");
-}
-
-type TaskResult = {
-    answer: string,
-    documents: string[],
-    scores: number[]
 }
 
 
@@ -52,12 +58,6 @@ function isTaskResult(input: unknown): input is TaskResult {
     )
 }
 
-type TaskResponse = {
-    task_id: string,
-    status: TaskStatus,
-    error?: string,
-    result?: TaskResult
-}
 
 function isTaskResponse(response: unknown): response is TaskResponse {
     const parsed = response as TaskResponse;
