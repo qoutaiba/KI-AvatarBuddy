@@ -27,7 +27,6 @@ type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
 
 function isTaskStatus(response: unknown): response is TaskStatus {
     const parsed = response as TaskStatus;
-
     return (parsed && parsed === "PENDING" || parsed == "FAILURE" || parsed == "SUCCESS");
 }
 
@@ -36,6 +35,7 @@ type TaskResult = {
     documents: string[],
     scores: number[]
 }
+
 
 function isArrayOf<T extends string | number>(input: unknown, type: T): input is T[] {
     return Array.isArray(input) && input.every(e => typeof e === type)
@@ -147,9 +147,8 @@ function App() {
     }
 
     const handleSend = async (message: IChatMessage) => {
-        // Die -Nachricht aus dem Input in die Megssages packen
+        // Die Nachricht aus dem Input in die Megssages packen
         setMessages((prev) => [...prev, message]);
-
         // Request the server api
         console.log(message)
         const task_request = await fetch("http://localhost:8000/chat", {
