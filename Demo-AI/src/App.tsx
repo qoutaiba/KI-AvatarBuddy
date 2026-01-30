@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { Routes, Route, BrowserRouter } from 'react-router-dom'
 import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
 import { Login } from './Pages/Login'
-import SubjectSelection from './Pages/SubjectSelection'
+import { SubjectSelection } from './Pages/SubjectSelection'
 import type { IChatMessage } from './Interfaces/IChatMessage'
 import { Subject } from '../src/classes/Subject'
 import { SchoolClass } from './classes/SchoolClass'
-import NotFound from './Pages/NotFound'
+import { NotFound } from './Pages/NotFound'
 import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
 import SubjectRoute from './components/SubjectRoute/SubjectRoute'
 import AppLayout from './components/AppLayout/AppLayout'
 import { OnBoarding } from './Pages/OnBoarding'
-import Administration from './Pages/Administration'
+import { Administration } from './Pages/Administration'
 import ClassRoute from './components/ClassRoute/ClassRoute'
 import { User } from './classes/User'
 
@@ -243,10 +243,7 @@ function App() {
             }),
         });
 
-        const handleOnboardingComplete = (interests: string[]) => {
-            console.log('User interests:', interests);
-            setCompletedOnboarding(true);
-        };
+        
         if (!task_request.ok) {
             throw new Error(`HTTP ${task_request.status} ${task_request.statusText}`);
         }
@@ -317,9 +314,11 @@ function App() {
         // trigger the avatar to talk
         window.avatarSpreche?.(answer);
     }
-
+    const handleOnboardingComplete = (interests: string[]) => {
+                console.log('User interests:', interests);
+                setCompletedOnboarding(true);
+            };
     //TODO: Router zum Login zu verschiedenen Pages
-    //fetchFinalResponse() zu classroom hinzufügen
     return (
     <BrowserRouter>
       <ThemeProvider theme={theme}>
@@ -329,7 +328,7 @@ function App() {
           <Route path="/onboarding" element={<ProtectedRoute condition={!!username && !!password}><OnBoarding onComplete={handleOnboardingComplete} name={username!} /></ProtectedRoute>} />
           <Route path="/" element={<ProtectedRoute condition={!!username && !!password}><AppLayout username={username!} onLogout={handleLogout} teacher={loggedInAsTeacher} /></ProtectedRoute>} >
             <Route index element={<ProtectedRoute condition={!!username && !!password}><SubjectSelection username={username!} subjects={subjects} /></ProtectedRoute>} />
-            <Route path="classroom/:subject" element={<ProtectedRoute condition={!!username && !!password}><SubjectRoute subjects={subjects} username={username!} messages={messages} onSend={handleSend} /></ProtectedRoute>} />
+            <Route path="classroom/:subject" element={<ProtectedRoute condition={!!username && !!password}><SubjectRoute subjects={subjects} username={username!} messages={messages} onSend={handleSend} fetchFinalResponse={fetchFinalResponse} /></ProtectedRoute>} />
             <Route path="administration" element={<ProtectedRoute condition={!!username && !!password && !!loggedInAsTeacher}><Administration schoolClasses={schoolClasses} /></ProtectedRoute>} />
             <Route path="schoolclass/:schoolClass" element={<ProtectedRoute condition={!!username && !!password && !!loggedInAsTeacher}><ClassRoute schoolClasses={schoolClasses} users={users} addStudent={addStudent} /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />

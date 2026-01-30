@@ -1,8 +1,8 @@
 .classroom {
   width: 100vw;
-  height: 100vh;
-
-  display: flex;
+  min-height: 100vh;
+  margin-top: -15rem;
+  padding-top: 15rem;
 
   background: linear-gradient(
     to bottom,
@@ -13,6 +13,12 @@
   );
 }
 
+.content {
+  display: flex;
+  flex: 1;
+  margin-left: 32px;
+  margin-right: 32px;
+}
 
 .left {
   width: 30%;
@@ -22,7 +28,6 @@
   align-items: center;
   
 }
-
 
 .middle {
   width: 60%;
@@ -35,7 +40,6 @@
   padding-top: 5%;  
   padding-left:10%; 
 }
-
 
 .right {
   width: 100vw;

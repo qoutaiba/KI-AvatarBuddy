@@ -1,8 +1,9 @@
 import React from 'react';
+import { useParams } from 'react-router-dom';
 import {ChatBoard} from '../components/Chatboard/Chatboard';
 import InputBox from '../components/InputBox/InputBox';
 import type {IChatMessage} from '../Interfaces/IChatMessage';
-import StatusBar from '../components/Status/StatusBar';
+import {StatusBar} from '../components/Status/StatusBar';
 import {MediaPanel} from '../components/MediaPanel/MediaPanel';
 import {MediaItem} from '../components/MediaItem/MediaItem';
 import {MediaType} from '../enums/MediaType';
@@ -33,29 +34,33 @@ const dummyMedia2 = new MediaItem(
 const dummyMedia = [dummyMedia1, dummyMedia2]
 
 const Classroom: React.FC<ClassroomProps> = ({username, messages, onSend, fetchFinalResponse}) => {
+    const { subject } = useParams<{ subject: string }>()
+
     return (
         <div className="classroom">
-            <div className='left'>
-                <Character></Character>
-                <StatusBar username={username}/>
-            </div>
+            <div className="content">
+                <div className='left'>
+                    <Character/>    
+                    <StatusBar username={username} subject={subject}/>
+                </div>
 
-            <div className='middle'>
-                <MediaPanel media={dummyMedia}/>
-            </div>
+                <div className='middle'>
+                    <MediaPanel media={dummyMedia}/>
+                </div>
 
 
-            <div className="right">
-                <ChatBoard messages={messages}/>
-                <InputBox onSend={onSend}/>
+                <div className="right">
+                    <ChatBoard messages={messages}/>
+                    <InputBox onSend={onSend}/>
+                </div>
+                <button onClick={() => {
+                    (window as {
+                        avatarSpreche: ((input: string) => void)
+                    }).avatarSpreche("Hello ich mache hiermit eine Probe ")
+                }}> hi
+                </button>
+                <button onClick={fetchFinalResponse}>Fetch final response</button>
             </div>
-            <button onClick={() => {
-                (window as {
-                    avatarSpreche: ((input: string) => void)
-                }).avatarSpreche("Hello ich mache hiermit eine Probe ")
-            }}> hi
-            </button>
-            <button onClick={fetchFinalResponse}>Fetch final response</button>
         </div>
     );
 };
