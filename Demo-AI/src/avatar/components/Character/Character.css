@@ -1,5 +1,5 @@
 .character-container {
-  width: 320px;
+  min-width: 320px;
   height: 400px; 
   display: flex;
   flex-direction: column;
@@ -9,7 +9,7 @@
 .character-avatar {
   width: 100%;
   height: 100%;
-  border-radius: 50%;
+  border-radius: 16px;
   background-color: #ddd;
   border: 4px solid #6b4a2b;
 
@@ -23,4 +23,5 @@
 .character-name {
   margin-top: 10px;
   font-weight: bold;
+  color: black;
 }

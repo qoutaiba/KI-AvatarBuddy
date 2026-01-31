@@ -178,11 +178,7 @@ function App() {
         new SchoolClass(10, "b"),
   ])
 
-    const [users, setUsers] = useState<User[]>([
-        new User("Max", schoolClasses[0].name, 1),
-        new User("Jessie", schoolClasses[0].name, 2),
-        new User("Panda", schoolClasses[2].name, 3),
-  ])
+    const [users, setUsers] = useState<User[]>([])
 
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
     const addStudent = (newStudent: User) => {

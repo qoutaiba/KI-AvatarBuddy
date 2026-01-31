@@ -41,7 +41,7 @@ const Classroom: React.FC<ClassroomProps> = ({username, messages, onSend, fetchF
             <div className="content">
                 <div className='left'>
                     <Character/>    
-                    <StatusBar username={username} subject={subject}/>
+                    {<StatusBar username={username} subject={subject}/>}
                 </div>
 
                 <div className='middle'>

@@ -1,14 +1,20 @@
 import type { SchoolClass } from "./SchoolClass";
 
 export class User {
-    readonly username: string
+    readonly class_id: number;
+    name : string;
+    readonly username: string;
+    password? : string;
     currentClass? : String | null = null;
-    readonly id: number;
-    readonly isTeacher: boolean = false;
+    
+    
 
-    constructor(username: string, currentClass: String | null, id: number) {
+    constructor(name: string, username: string, currentClass: String | null, class_id: number, password?: string) {
+        
+        this.name = name;
         this.username = username;
         this.currentClass = currentClass ;
-        this.id = id;
+        this.class_id = class_id;
+        this.password = password;
     }
 }
