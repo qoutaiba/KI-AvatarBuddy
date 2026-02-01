@@ -12,7 +12,7 @@ interface ClassRouteProps {
 const ClassRoute: React.FC<ClassRouteProps> = ({  addStudent }) => {
   const { classId, className } = useParams<{ classId: string; className: string }>();
 
-  // Wenn classId fehlt oder keine Zahl ist, 404
+  
   if (!classId || isNaN(Number(classId))) {
     return <Navigate to="/404" replace />
   }

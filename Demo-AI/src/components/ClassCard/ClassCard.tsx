@@ -20,7 +20,7 @@ const ClassCard: React.FC<IClassCardProps> = ({ id, name, subject }) => {
       <CardContent>
         <Stack spacing={3}>
           <Typography variant="h4" component="h2">
-            {name} ({subject})
+            {id}:{name} ({subject})
           </Typography>
           <Button variant="contained" fullWidth onClick={handleClick}>
             Anzeigen

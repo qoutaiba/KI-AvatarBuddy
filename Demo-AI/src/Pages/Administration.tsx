@@ -1,5 +1,5 @@
 import React from 'react'
-import { Typography, Box, Grid, Button } from '@mui/material'
+import { Typography, Box, Grid, Button, TextField } from '@mui/material'
 
 import ClassCard from '../components/ClassCard/ClassCard';
 import type { SchoolClass } from '../classes/SchoolClass';
@@ -10,6 +10,10 @@ import { useState } from 'react';
 
  export const Administration: React.FC  = () => {
     const [loadedClasses, setLoadedClasses] = useState<SchoolClass[]>([]);
+    const [newClassName, setNewClassName] = useState<string>('');
+    const [newSubject, setNewSubject] = useState<string>('');
+    const [gradeLvl , setGradeLvl] = useState<string>('');
+    const [toDeleteId, setToDeleteId] = useState<number | null>(null);
 
     const handleOnClick = async () => {
   try {
@@ -19,11 +23,12 @@ import { useState } from 'react';
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        name: "Class 7B",
+        name: newClassName,
         teacher_id: 3,
-        grade_level: "7",
-        subject: "Biologie",
+        grade_level: gradeLvl,
+        subject: newSubject,
       }),
+      
       
     });
     
@@ -37,7 +42,9 @@ import { useState } from 'react';
     if (!response.ok) {
       throw new Error(`HTTP error! Status: ${response.status}`);
     }
-
+      setNewClassName('');
+      setNewSubject('');
+      setGradeLvl('');
     const data = await response.json();
     console.log("Success:", data);
   } catch (error) {
@@ -68,7 +75,11 @@ import { useState } from 'react';
     console.error("Error registering teacher:", error);
   }
 };
-    
+/*
+const handleDeleteClass = async () => {
+ return 0;
+};
+*/  
 useEffect(() => {
   const fetchClasses = async () => {
     try {
@@ -92,6 +103,27 @@ useEffect(() => {
         <Box sx={{marginLeft: '32px', marginRight: '32px', marginTop: '32px'}}>
             <Typography variant='h3' component='h1' gutterBottom sx={{ ml: 0.5, overflow: "hidden", textOverflow: "ellipsis" }}>Verwaltung</Typography>
             <Typography variant='subtitle1' sx={{ ml: 0.5 }}>Wählen Sie eine Klasse, um zu beginnen.</Typography>
+          <TextField
+                      label="Klasse"
+                      variant="outlined"
+                      size="small"
+                      value={newClassName}
+                      onChange={(e) => setNewClassName(e.target.value)}
+                    />
+          <TextField
+                      label="Fach"
+                      variant="outlined"
+                      size="small"
+                      value={newSubject}
+                      onChange={(e) => setNewSubject(e.target.value)}
+                    />
+          <TextField
+                      label="Klassenstufe"
+                      variant="outlined"
+                      size="small"
+                      value={gradeLvl}
+                      onChange={(e) => setGradeLvl(e.target.value)}
+                    />
         <Button 
                   variant="contained" 
                   color="primary" 
@@ -99,15 +131,30 @@ useEffect(() => {
                 >
                   Klasse Hinzufügen
         </Button>
-                <Button 
+        <TextField 
+                      label="ID zum Löschen"
+                      variant="outlined"
+                      size="small"
+                      value={toDeleteId !== null ? toDeleteId : ''}
+                      onChange={(e) => setToDeleteId(Number(e.target.value))}
+        />
+          <Button
+            variant="contained" 
+            color="secondary" 
+           // onClick={() => handleDeleteClass(toDeleteId)}
+          >
+            Klasse Löschen
+          </Button>
+        
+                
+        </Box>
+         <Button 
                   variant="contained" 
                   color="primary" 
                   onClick={handleRegisterTeacher}
                 >
                   Lehrer Hinzufügen
         </Button>
-        </Box>
-         
             <Grid container spacing={4} justifyContent={'flex-start'} alignItems={'flex-start'} sx={{ margin: '32px' }}>
             {loadedClasses.map((schoolClass) => (
                 <Grid key={schoolClass.id} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>

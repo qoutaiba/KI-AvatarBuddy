@@ -25,6 +25,7 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
   const [students, setStudents] = useState<User[]>([]);
   const [newName, setNewName] = useState<string>('');
   const [newUsername, setNewUsername] = useState<string>('');
+  const [deleteId, setDeleteId] = useState<number | null>(null);
 
   type StudentFromBackend = {
     id: number;
@@ -75,7 +76,7 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
           name: newName.trim(),
           username: newUsername.trim(),
           class_id: classId,
-          password,
+          password: password,
         }),
       });
 
@@ -105,6 +106,32 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
     }
   };
 
+  const handleDeleteStudent = async () => { //Todo: instead of use next id, use the deleted one.
+  if (deleteId === null) return;
+
+  try {
+    const response = await fetch(
+      `http://localhost:8000/api/user/student/${deleteId}?teacher_id=3`,
+      {
+        method: "DELETE",
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`HTTP ${response.status}`);
+    }
+
+    setStudents(prev => prev.filter(s => s.id !== deleteId));
+    setDeleteId(null);
+
+    console.log("Schüler erfolgreich gelöscht");
+  } catch (err) {
+    console.error("Fehler beim Löschen des Schülers:", err);
+    alert("Schüler konnte nicht gelöscht werden");
+  }
+};
+
+
   return (
     <Box sx={{ width: "100vw", height: "100vh", overflowY: "auto" }}>
       <Box sx={{ mx: 4, mt: 4 }}>
@@ -128,9 +155,22 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
           <Button variant="contained" color="primary" onClick={handleAddStudent}>
             Hinzufügen
           </Button>
+          <TextField
+                      label="ID zum Löschen"
+                      variant="outlined"
+                      size="small"
+                      value={deleteId !== null ? deleteId : ''}
+                      onChange={(e) => setDeleteId(Number(e.target.value))}
+                    />
+          <Button variant="contained" color="secondary" onClick={handleDeleteStudent}>
+            Löschen
+          </Button>
         </Box>
-
-        <TableContainer component={Paper}>
+       
+        <TableContainer component={Paper} sx={{
+    maxHeight: '60vh',   // oder z.B. 400
+    overflowY: 'auto',
+  }}>
           <Table>
             <TableHead>
               <TableRow>
