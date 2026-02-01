@@ -1,10 +1,11 @@
 import {useState} from 'react';
-import {Alert, createTheme, CssBaseline, ThemeProvider} from '@mui/material';
+import {Alert, Button, createTheme, CssBaseline, Snackbar, ThemeProvider} from '@mui/material';
 import type {IChatMessage} from './Interfaces/IChatMessage';
 import {Login} from "./Pages/Login.tsx";
 import Admin from "./Pages/Admin.tsx";
 import TeacherUI from "./Pages/TeacherUI.tsx";
 import Classroom from "./Pages/Classroom.tsx";
+import IngestDataToAvatar from "./components/DataIngestion/IngestDataToAvatar.tsx";
 
 type ChatType = {
     task_id: string,
@@ -191,6 +192,11 @@ function App() {
 
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
 
+    const [openDataIngestion, setOpenDataIngestion] = useState(false)
+
+    const [loginPopup, setLoginPopup] = useState<{ open: boolean, msg: string }>({open: false, msg: ""});
+    const closedLoginPopup = () => setLoginPopup({open: false, msg: ""})
+
     type Role = "NONE" | "ADMIN" | "STUDENT" | "TEACHER"
 
     const [loggedRole, setloggedRole] = useState<Role | null>("NONE")
@@ -219,7 +225,11 @@ function App() {
                 }),
             });
             if (!teacher_login_request.ok) {
-                throw new Error(`HTTP ${teacher_login_request.status} ${teacher_login_request.statusText}`);
+
+                setLoginPopup({open: true, msg: "Benutzername oder Passwort ist falsch."});
+                setPassword("")
+                setUsername("")
+                return;
             }
             // wait until server replays with a login response
             const jsonLogin = (await teacher_login_request.json());
@@ -231,10 +241,12 @@ function App() {
                 console.log("Alles gut Teacher ")
                 return <Alert> Willkommen ${name}</Alert>
             } else if (isTeacherLoginError(jsonLogin)) {
-                return <Alert> Einloggen war nicht möglich, probieren Sie bitte nochmal</Alert>
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."});
+                return;
 
             } else {
-                return <Alert> Unbekannte Antwort vom Server, probieren Sie bitte nochmal</Alert>
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, Server Error."});
+                return;
             }
 
         } else if (role === "STUDENT") {
@@ -254,7 +266,10 @@ function App() {
             });
 
             if (!student_login_request.ok) {
-                throw new Error(`HTTP ${student_login_request.status} ${student_login_request.statusText}`);
+                setLoginPopup({open: true, msg: "Benutzername oder Passwort ist falsch."});
+                setPassword("")
+                setUsername("")
+                return;
             }
             // wait until server replays with a login response
             const jsonLogin = (await student_login_request.json());
@@ -263,19 +278,20 @@ function App() {
                 setloggedRole("STUDENT")
                 setLoggedPersonID(jsonLogin.student_id)
                 console.log("Alles gut Student ")
-                return <Alert> Willkommen ${name}</Alert>
+
             } else if (isStudentLoginError(jsonLogin)) {
-                return <Alert> Einloggen war nicht möglich, probieren Sie bitte nochmal</Alert>
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."});
+                return;
 
             } else {
-                return <Alert> Unbekannte Antwort vom Server, probieren Sie bitte nochmal</Alert>
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, Server Error."});
+                return;
             }
 
         } else if (username === "admin" && password === "admin") {
             setloggedRole("ADMIN")
             setUsername("")
             setPassword("")
-            setloggedRole("NONE");
             return <Alert> Willkommen ${name}</Alert>
         }
     }
@@ -369,6 +385,23 @@ function App() {
     return (
         <ThemeProvider theme={theme}>
             <CssBaseline enableColorScheme/>
+            <Button onClick={() => setOpenDataIngestion((prevState) => !prevState)}>
+                open ingest data
+            </Button>
+
+            <IngestDataToAvatar open={openDataIngestion} setOpen={setOpenDataIngestion}/>
+
+
+            <Snackbar
+                open={loginPopup.open}
+                autoHideDuration={3000}
+                onClose={closedLoginPopup}
+                anchorOrigin={{vertical: "top", horizontal: "center"}}
+            >
+                <Alert onClose={closedLoginPopup} severity="error" variant="filled">
+                    {loginPopup.msg}
+                </Alert>
+            </Snackbar>
             <div className="app-container">
                 {loggedRole === "NONE" ? (
                     <Login onLogin={handleLogin}/>

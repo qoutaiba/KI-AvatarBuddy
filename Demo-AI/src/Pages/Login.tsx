@@ -26,6 +26,7 @@ interface LoginProps {
     onLogin: (username: string, password: string, role: string) => void
 }
 
+
 export const Login: React.FC<LoginProps> = ({onLogin}) => {
     const [username, setUsername] = useState<string>('')
     const [password, setPassword] = useState<string>('')
@@ -33,6 +34,7 @@ export const Login: React.FC<LoginProps> = ({onLogin}) => {
     type Role = "NONE" | "ADMIN" | "STUDENT" | "TEACHER"
 
     const [role, setRole] = useState<Role>("NONE");
+
 
     //TODO: Server Register and Login Connetion
     const handleSubmit = (e: React.FormEvent) => {
@@ -44,69 +46,140 @@ export const Login: React.FC<LoginProps> = ({onLogin}) => {
         }
     }
 
+
     return (
         <div className="login-container">
-
-            <Stack direction="row" spacing={3} justifyContent="center">
-                <IconButton
-                    type="button"
-                    color={role === 'TEACHER' ? 'primary' : 'default'}
-                    onClick={() => setRole('TEACHER')}
-                >
-                    <SchoolIcon fontSize="large"/>
-                </IconButton>
-
-                <IconButton
-                    type="button"
-                    color={role === 'STUDENT' ? 'primary' : 'default'}
-                    onClick={() => setRole('STUDENT')}
-                >
-                    <PersonIcon fontSize="large"/>
-                </IconButton>
-
-                <IconButton
-                    type="button"
-                    color={role === 'ADMIN' ? 'primary' : 'default'}
-                    onClick={() => setRole('ADMIN')}
-                >
-                    <AdminPanelSettingsIcon fontSize="large"/>
-                </IconButton>
-            </Stack>
-            <Card sx={{minWidth: 320, maxWidth: 600, width: "90%", borderRadius: 4}}>
-                <CardContent>
+            <Card
+                sx={{
+                    width: "100%",
+                    maxWidth: 720,        // größer als vorher (600)
+                    borderRadius: 4,
+                }}
+            >
+                <CardContent sx={{p: 4}}> {/* mehr Innenabstand */}
                     <Stack spacing={3}>
-                        <Typography variant="h3" component="h1">AI Buddy</Typography>
-                        <Typography variant="subtitle1">Dein interaktiver Lernbegleiter</Typography>
-                        <Divider aria-hidden="true" orientation="horizontal"/>
-                        <Typography variant="h5" component="h2">Login</Typography>
+                        {/* ROLE ICONS – ganz oben, Teil der Form */}
+                        <Stack
+                            direction="row"
+                            spacing={4}
+                            justifyContent="center"
+                            alignItems="center"
+                        >
+                            <IconButton
+                                type="button"
+                                color={role === "TEACHER" ? "primary" : "default"}
+                                onClick={() => setRole("TEACHER")}
+                            >
+                                <SchoolIcon sx={{fontSize: 64}}/>
+                            </IconButton>
+
+                            <IconButton
+                                type="button"
+                                color={role === "STUDENT" ? "primary" : "default"}
+                                onClick={() => setRole("STUDENT")}
+                            >
+                                <PersonIcon sx={{fontSize: 64}}/>
+                            </IconButton>
+
+                            <IconButton
+                                type="button"
+                                color={role === "ADMIN" ? "primary" : "default"}
+                                onClick={() => setRole("ADMIN")}
+                            >
+                                <AdminPanelSettingsIcon sx={{fontSize: 64}}/>
+                            </IconButton>
+                        </Stack>
+
+                        {/* SELECTED ROLE LINE */}
+                        <Typography
+                            variant="body1"
+                            align="center"
+                            sx={{
+                                fontWeight: 600,
+                                letterSpacing: 0.2,
+                            }}
+                        >
+                            Ausgewählt:{" "}
+                            {role === "NONE"
+                                ? "— bitte Rolle wählen"
+                                : role === "TEACHER"
+                                    ? "Lehrer"
+                                    : role === "STUDENT"
+                                        ? "Schüler"
+                                        : "Admin"}
+                        </Typography>
+
+                        {/* HEADER */}
+                        <Stack spacing={1} alignItems="center">
+                            <Typography variant="h3" component="h1">
+                                AI Buddy
+                            </Typography>
+                            <Typography variant="subtitle1">
+                                Dein interaktiver Lernbegleiter
+                            </Typography>
+                        </Stack>
+
+                        <Divider/>
+
+                        <Typography variant="h5" component="h2">
+                            Login
+                        </Typography>
+
 
                         {alertOpen && (
                             <Fade in={alertOpen}>
-                                <Alert severity="error">Dein Benutzername oder dein Passwort ist falsch!</Alert>
+                                <Alert severity="error">
+                                    Dein Benutzername oder dein Passwort ist falsch!
+                                </Alert>
                             </Fade>
                         )}
-                        <TextField label="Dein Benutzername" variant="outlined" fullWidth margin="normal"
-                                   value={username} onChange={(e) => setUsername(e.target.value)} error={alertOpen}/>
-                        <TextField label="Dein Passwort" variant="outlined" fullWidth margin="normal" value={password}
-                                   onChange={(e) => setPassword(e.target.value)} error={alertOpen} type="password"/>
+
+
+                        <TextField
+                            label="Dein Benutzername"
+                            variant="outlined"
+                            fullWidth
+                            value={username}
+                            onChange={(e) => setUsername(e.target.value)}
+                            error={alertOpen}
+                        />
+
+                        <TextField
+                            label="Dein Passwort"
+                            variant="outlined"
+                            type="password"
+                            fullWidth
+                            value={password}
+                            onChange={(e) => setPassword(e.target.value)}
+                            error={alertOpen}
+                        />
+
                         <Typography variant="body2" align="right">
                             <Link href="/forgot-password" underline="hover">
                                 Passwort vergessen?
                             </Link>
                         </Typography>
 
-                        <Button variant="contained" fullWidth onClick={handleSubmit} endIcon={<MeetingRoomIcon/>}
-                                disabled={username.trim() === "" || password.trim() === ""}>
+                        {/* SUBMIT */}
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            onClick={handleSubmit}
+                            endIcon={<MeetingRoomIcon/>}
+                            disabled={
+                                role === "NONE" ||
+                                username.trim() === "" ||
+                                password.trim() === ""
+                            }
+                            sx={{py: 1.2}}  // Button etwas höher
+                        >
                             <Typography variant="button">Ins Klassenzimmer</Typography>
                         </Button>
-
-                        <Divider aria-hidden="true" orientation="horizontal" textAlign="center">
-                            <Typography variant="caption">Demo-Version: kein echter Login!</Typography>
-                        </Divider>
                     </Stack>
                 </CardContent>
             </Card>
         </div>
-    )
+    );
+
 }
 
