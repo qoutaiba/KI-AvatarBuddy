@@ -1,6 +1,6 @@
-import type { SchoolClass } from "./SchoolClass";
 
 export class User {
+    id: number;
     readonly class_id: number;
     name : string;
     readonly username: string;
@@ -9,8 +9,8 @@ export class User {
     
     
 
-    constructor(name: string, username: string, currentClass: String | null, class_id: number, password?: string) {
-        
+    constructor(id: number, name: string, username: string, currentClass: String | null, class_id: number, password?: string) {
+        this.id = id;
         this.name = name;
         this.username = username;
         this.currentClass = currentClass ;

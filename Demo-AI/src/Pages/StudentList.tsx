@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useState, useEffect } from 'react';
 import {
   Typography,
   Button,
@@ -11,132 +11,124 @@ import {
   TableRow,
   TextField,
   Paper
-} from '@mui/material'
+} from '@mui/material';
 import type { User } from '../classes/User';
 import { generatePassword } from '../components/HelperFunctions/GeneratePassword';
 
 interface IStudentListProps {
+  classId: number;
   className: string;
-  students: User[];
   addStudent: (student: User) => void;
 }
 
-const StudentList: React.FC<IStudentListProps> = ({ className, students, addStudent }) => {
-  const [Students, setStudents] = useState<User[]>(students);
-  const [newName, setNewName] = useState<string>('') // Name aus Input
-  const [newUsername, setNewUsername] = useState<string>('') // Username aus Input
+const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStudent }) => {
+  const [students, setStudents] = useState<User[]>([]);
+  const [newName, setNewName] = useState<string>('');
+  const [newUsername, setNewUsername] = useState<string>('');
 
-
-  type CreateStudentResponse = {
+  type StudentFromBackend = {
     id: number;
     name: string;
     username: string;
     class_id: number;
-    password: string;
-  }
+    password?: string;
+  };
 
-  function isCreateStudentResponse(input: unknown): input is CreateStudentResponse {
-    const parsed = input as CreateStudentResponse;
+  const fetchStudents = async () => {
+    try {
+      const response = await fetch(`http://localhost:8000/api/classes/${classId}/students?teacher_id=3`);
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      
+      const data = await response.json();
 
-    return (
-      parsed &&
-      typeof parsed.id === "number" &&
-      typeof parsed.name === "string" &&
-      typeof parsed.username === "string" &&
-      typeof parsed.class_id === "number"
-    );
-  }
+      if (!Array.isArray(data)) {
+        console.error("Unexpected students response:", data);
+        return;
+      }
+
+      setStudents(
+        data.map((s: StudentFromBackend) => ({
+          ...s,
+          password: s.password || '',
+          currentClass: className,
+        }))
+      );
+    } catch (err) {
+      console.error("Fehler beim Laden der Schüler:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchStudents();
+  }, [classId]);
 
   const handleAddStudent = async () => {
-  if (!newName.trim() || !newUsername.trim()) return;
+    if (!newName.trim() || !newUsername.trim()) return;
 
-  const password = generatePassword();
+    const password = generatePassword();
 
-  try {
-    const response = await fetch("http://localhost:8000/api/classes/1/students", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        name: newName.trim(),
-        class_id: 1,
-        username: newUsername.trim(),
+    try {
+      const response = await fetch(`http://localhost:8000/api/classes/${classId}/students`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newName.trim(),
+          username: newUsername.trim(),
+          class_id: classId,
+          password,
+        }),
+      });
+
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+      const json: StudentFromBackend = await response.json();
+
+      const newStudent: User = {
+        id: json.id,
+        name: json.name,
+        username: json.username,
+        class_id: json.class_id,
         password,
-      }),
-    });
+        currentClass: className,
+      };
 
-    if (!response.ok) {
-      throw new Error(`HTTP ${response.status} ${response.statusText}`);
+      setStudents(prev => [...prev, newStudent]);
+      addStudent(newStudent);
+
+      setNewName('');
+      setNewUsername('');
+
+      console.log("Schüler erfolgreich erstellt:", json);
+    } catch (err) {
+      console.error("Schüler konnte nicht erstellt werden:", err);
+      alert("Schüler konnte nicht erstellt werden");
     }
-
-    const json = await response.json();
-
-    if (!isCreateStudentResponse(json)) {
-      throw new Error(`Unexpected response: ${JSON.stringify(json)}`);
-    }
-
-    // ✅ Backend bestätigt → jetzt UI updaten
-    const newStudent: User = {
-      class_id: json.class_id,
-      name: json.name,
-      username: json.username,
-      password,
-      currentClass: className,
-    };
-
-    addStudent(newStudent);
-    setStudents(prev => [...prev, newStudent]);
-
-    setNewName("");
-    setNewUsername("");
-
-    console.log("Schüler erfolgreich erstellt:", json);
-
-  } catch (err) {
-    console.error("Schüler konnte nicht erstellt werden:", err);
-    alert("Schüler konnte nicht erstellt werden ");
-  }
-};
-
+  };
 
   return (
     <Box sx={{ width: "100vw", height: "100vh", overflowY: "auto" }}>
       <Box sx={{ mx: 4, mt: 4 }}>
-        <Typography variant="h3" component="h1" gutterBottom>
-          Klasse {className}
-        </Typography>
+        <Typography variant="h3" gutterBottom>{className}</Typography>
 
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 2 }}>
-        <Typography variant="subtitle1">
-          Schüler:
-        </Typography>
-
-        <TextField
-          label="Name des Schülers"
-          variant="outlined"
-          size="small"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-        />
-
-        <TextField
-          label="Username"
-          variant="outlined"
-          size="small"
-          value={newUsername}
-          onChange={(e) => setNewUsername(e.target.value)}
-        
-        />
-        <Button 
-          variant="contained" 
-          color="primary" 
-          onClick={handleAddStudent}
-        >
-          Hinzufügen
-        </Button>
+          <TextField
+            label="Name des Schülers"
+            variant="outlined"
+            size="small"
+            value={newName}
+            onChange={(e) => setNewName(e.target.value)}
+          />
+          <TextField
+            label="Username"
+            variant="outlined"
+            size="small"
+            value={newUsername}
+            onChange={(e) => setNewUsername(e.target.value)}
+          />
+          <Button variant="contained" color="primary" onClick={handleAddStudent}>
+            Hinzufügen
+          </Button>
         </Box>
-
-    
-
 
         <TableContainer component={Paper}>
           <Table>
@@ -146,14 +138,12 @@ const StudentList: React.FC<IStudentListProps> = ({ className, students, addStud
                 <TableCell><strong>Name</strong></TableCell>
                 <TableCell><strong>Username</strong></TableCell>
                 <TableCell><strong>Password</strong></TableCell>
-
               </TableRow>
             </TableHead>
-
             <TableBody>
-              {Students.map((student) => (
-                <TableRow key={student.class_id}>
-                  <TableCell>{student.class_id}</TableCell>
+              {students.map(student => (
+                <TableRow key={student.id}>
+                  <TableCell>{student.id}</TableCell>
                   <TableCell>{student.name}</TableCell>
                   <TableCell>{student.username}</TableCell>
                   <TableCell>{student.password}</TableCell>
@@ -162,10 +152,9 @@ const StudentList: React.FC<IStudentListProps> = ({ className, students, addStud
             </TableBody>
           </Table>
         </TableContainer>
-
       </Box>
     </Box>
-  )
-}
+  );
+};
 
-export default StudentList
+export default StudentList;
