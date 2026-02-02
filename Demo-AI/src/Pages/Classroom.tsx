@@ -1,5 +1,4 @@
 import React from 'react';
-import { useParams } from 'react-router-dom';
 import {ChatBoard} from '../components/Chatboard/Chatboard';
 import InputBox from '../components/InputBox/InputBox';
 import type {IChatMessage} from '../Interfaces/IChatMessage';
@@ -34,14 +33,14 @@ const dummyMedia2 = new MediaItem(
 const dummyMedia = [dummyMedia1, dummyMedia2]
 
 const Classroom: React.FC<ClassroomProps> = ({username, messages, onSend, fetchFinalResponse}) => {
-    const { subject } = useParams<{ subject: string }>()
-
+    // const { subject } = useParams<{ subject: string }>()
+    console.log("in classroom")
     return (
         <div className="classroom">
             <div className="content">
                 <div className='left'>
-                    <Character/>    
-                    {<StatusBar username={username} subject={subject}/>}
+                    <Character/>
+                    {<StatusBar username={username} subject={undefined}/>}
                 </div>
 
                 <div className='middle'>

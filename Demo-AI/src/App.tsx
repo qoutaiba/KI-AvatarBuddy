@@ -1,333 +1,85 @@
-import {useState} from 'react';
-import {createTheme, CssBaseline, ThemeProvider} from '@mui/material';
-import {Login} from './Pages/Login';
-import Classroom from './Pages/Classroom';
-import type {IChatMessage} from './Interfaces/IChatMessage';
-
-type ChatType = {
-    task_id: string,
-    collection: string
-}
-type TaskResult = {
-    answer: string,
-    documents: string[],
-    scores: number[]
-}
-type TaskResponse = {
-    task_id: string,
-    status: TaskStatus,
-    error?: string,
-    result?: TaskResult
-}
-type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
-type Teacher = {
-    teacher_id: number
-}
-type Student = {
-    "student_id": number,
-    "class_id": number
-}
-
-function isTeacher(person: unknown): person is Teacher {
-    const parsed = person as Teacher;
-    return (
-        parsed &&
-        typeof parsed.teacher_id === "number"
-    );
-}
-
-function isStudent(person: unknown): person is Student {
-    const parsed = person as Student;
-    return (
-        parsed &&
-        typeof parsed.student_id === "number" &&
-        typeof parsed.class_id === "number"
-    );
-}
-
-// here should come isAdmin
+import {createTheme, CssBaseline, ThemeProvider} from "@mui/material";
+import {useState} from "react";
+import type {IChatMessage} from "./Interfaces/IChatMessage.ts";
+import type {User} from "./classes/User.ts";
+import {BrowserRouter, Route, Routes} from "react-router-dom";
+import {Login} from "./Pages/Login.tsx";
+import ProtectedRoute from "./components/ProtectedRoute/ProtectedRoute.tsx";
+import {OnBoarding} from "./Pages/OnBoarding.tsx";
+import AppLayout from "./components/AppLayout/AppLayout.tsx";
+import {NotFound} from "./Pages/NotFound.tsx";
+import {SubjectSelection} from "./Pages/SubjectSelection.tsx";
+import {Administration} from "./Pages/Administration.tsx";
+import ClassRoute from "./components/ClassRoute/ClassRoute.tsx";
+import SubjectRoute from "./components/SubjectRoute/SubjectRoute.tsx";
+import type {Role} from "./types.ts";
+import {isChatResponse, isTaskResponse} from "./utils/typeguards.ts";
 
 
-function isChatResponse(response: unknown): response is ChatType {
-    const parsed = response as ChatType;
-
-    return (
-        parsed &&
-        typeof parsed.task_id === "string" &&
-        typeof parsed.collection === "string"
-    );
-}
-
-function isTaskStatus(response: unknown): response is TaskStatus {
-    const parsed = response as TaskStatus;
-    return (parsed && parsed === "PENDING" || parsed == "FAILURE" || parsed == "SUCCESS");
-}
-
-function isArrayOf<T extends string | number>(input: unknown, type: T): input is T[] {
-    return Array.isArray(input) && input.every(e => typeof e === type)
-}
-
-function isTaskResult(input: unknown): input is TaskResult {
-    const parsed = input as TaskResult;
-
-    return (
-        parsed === undefined || (
-            typeof parsed.answer === "string" &&
-            isArrayOf(parsed.documents, "string") &&
-            isArrayOf(parsed.scores, "number"))
-    )
-}
-
-function isTaskResponse(response: unknown): response is TaskResponse {
-    const parsed = response as TaskResponse;
-    return (
-        parsed &&
-        typeof parsed.task_id === "string" &&
-        isTaskStatus(parsed.status) &&
-        (parsed.error === undefined || typeof parsed.error === "string") &&
-        isTaskResult(parsed.result)
-    );
-}
-
-
-async function fetchResponseWithRetryAndTimeout(props: { taskID: string }) {
-    const taskID = props
-
-    console.log("fetchFinalResponse", taskID);
-
-    // check on network errors (advanced step)
-    while (true) {
-        const response = await fetch(`http://localhost:8000/tasks/${taskID}`, {
-            method: "GET"
-        });
-
-
-        const json = await response.json();
-        if (!isTaskResponse(json)) throw new Error(`Expected a task response of type TaskResponse but received ${JSON.stringify(json)}`);
-
-        if (json.status !== "PENDING") {
-            return {error: json.error ?? null, result: json.result ?? null};
-        }
-
-        setTimeout(() => {
-        }, 1000)
-    }
-}
-
-const theme = createTheme({
-    colorSchemes: {
-        dark: true,
-    },
-    palette: {
-        primary: {
-            main: '#1976d2',
-        },
-        secondary: {
-            main: '#9c27b0',
-        },
-        background: {
-            default: '#f0f8ff',
-        },
-    },
-});
-
-type TeacherLoginSuccess = {
-    teacher_id: number,
-}
-
-type TeacherLoginFailure = { detail: string }
-
-function isTeacherLoginSuccess(response: unknown): response is TeacherLoginSuccess {
-    const parsed = response as TeacherLoginSuccess;
-    return (
-        parsed &&
-        typeof parsed.teacher_id === "number"
-    );
-}
-
-function isTeacherLoginError(response: unknown): response is TeacherLoginFailure {
-    const parsed = response as TeacherLoginFailure;
-    return (
-        parsed &&
-        typeof parsed && typeof parsed.detail === "string"
-    );
-}
-
-type StudentLoginSuccess = {
-    student_id: number,
-    class_id: number
-}
-
-type StudentLoginFailure = { detail: string }
-
-function isStudentLoginSuccess(response: unknown): response is StudentLoginSuccess {
-    const parsed = response as StudentLoginSuccess;
-
-    return (
-        parsed &&
-        typeof parsed.student_id === "number" &&
-        typeof parsed.class_id === "number"
-
-    );
-}
-
-
-function isStudentLoginError(response: unknown): response is StudentLoginFailure {
-    const parsed = response as StudentLoginFailure;
-    return (
-        parsed &&
-        typeof parsed && typeof parsed.detail === "string"
-    );
-}
+// async function fetchResponseWithRetryAndTimeout(props: { taskID: string }) {
+//     const {taskID} = props
+//
+//     console.log("fetchResponseWithRetryAndTimeout", taskID);
+//
+//     // check on network errors (advanced step)
+//     while (true) {
+//         const response = await fetch(`http://localhost:8000/tasks/${taskID}`, {
+//             method: "GET"
+//         });
+//
+//
+//         const json = await response.json();
+//         if (!isTaskResponse(json)) throw new Error(`Expected a task response of type TaskResponse but received ${JSON.stringify(json)}`);
+//
+//         if (json.status !== "PENDING") {
+//             return {error: json.error ?? null, result: json.result ?? null};
+//         }
+//
+//         setTimeout(() => {
+//         }, 1000)
+//     }
+// }
 
 function App() {
-
-    const AI_Response: string[] = [
-        'Interessante Frage!',
-        'Darüber können wir sprechen',
-        'Gute Beobachtung.',
-        'Lass uns das gemeinsam anschauen.',
-    ]
-
+    const theme = createTheme({
+        colorSchemes: {
+            dark: true,
+        },
+        palette: {
+            primary: {
+                main: '#1976d2',
+            },
+            secondary: {
+                main: '#9c27b0',
+            },
+            background: {
+                default: '#f0f8ff',
+            },
+        },
+    });
 
     const [completedOnBoarding, setCompletedOnboarding] = useState<boolean>(false)
 
-    const [username, setUsername] = useState<string | null>(null)
-    const [password, setPassword] = useState<string | null>(null)
+    const [username, setUsername] = useState<string>("")
+    const [password, setPassword] = useState<string>("")
+    const [, setLoggedPersonID] = useState<number>(0)
+
+    const [role, setRole] = useState<Role | null>(null)
     const [messages, setMessages] = useState<IChatMessage[]>([
-        { id: '1', sender: 'ai', text: 'hi', timestamp: new Date() },
+        {id: '1', sender: 'ai', text: 'hi', timestamp: new Date()},
     ])
-    const [subjects, setSubjects] = useState<Subject[] | null>([
-        new Subject("Deutsch"),
-        new Subject("Englisch"),
-        new Subject("Französisch"),
-        new Subject("Latein"),
-        new Subject("Mathematik"),
-        new Subject("Physik", 2),
-        new Subject("Informatik"),
-        new Subject("Biologie"),
-        new Subject("Chemie"),
-        new Subject("Geographie"),
-        new Subject("Kunst"),
-        new Subject("Musik", 1),
-        new Subject("Sport"),
-  ])
 
-    const [schoolClasses, setSchoolClasses] = useState<SchoolClass[]>([])
-        const addSchoolClass = (newClass: SchoolClass) => {
-        setSchoolClasses((prevClasses) => [...prevClasses, newClass]);
-    }
 
-    const [users, setUsers] = useState<User[]>([])
+    const [, setUsers] = useState<User[]>([])
 
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
-
-    const [openDataIngestion, setOpenDataIngestion] = useState(false)
-
-    const [loginPopup, setLoginPopup] = useState<{ open: boolean, msg: string }>({open: false, msg: ""});
-    const closedLoginPopup = () => setLoginPopup({open: false, msg: ""})
-
-    type Role = "NONE" | "ADMIN" | "STUDENT" | "TEACHER"
-
-    const [loggedRole, setloggedRole] = useState<Role | null>("NONE")
-
-    const [loggedPersonID, setLoggedPersonID] = useState<number>(0)
+    const handleLogout = () => {
+    }
 
     const addStudent = (newStudent: User) => {
         setUsers((prevUsers) => [...prevUsers, newStudent]);
     }
 
-    const handleLogin = async (name: string, pw: string, role: Role) => {
-
-        console.count("handleLogin called");
-        console.log("payload", {name, pw, role});
-
-        setUsername(name)
-        setPassword(pw)
-
-
-        console.log(role + "  wants to ")
-        if (role === "TEACHER") {
-            console.log("Im in Teacher ")
-            const teacher_login_request = await fetch("http://localhost:8000/api/auth/login", {
-                method: 'POST',
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    email: name,
-                    password: pw
-                }),
-            });
-            if (!teacher_login_request.ok) {
-
-                setLoginPopup({open: true, msg: "Benutzername oder Passwort ist falsch."});
-                setPassword("")
-                setUsername("")
-                return;
-            }
-            // wait until server replays with a login response
-            const jsonLogin = (await teacher_login_request.json());
-
-            console.log(jsonLogin)
-            if (isTeacherLoginSuccess(jsonLogin)) {
-                setloggedRole("TEACHER")
-                setLoggedPersonID(jsonLogin.teacher_id)
-                console.log("Alles gut Teacher ")
-                return <Alert> Willkommen ${name}</Alert>
-            } else if (isTeacherLoginError(jsonLogin)) {
-                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."});
-                return;
-
-            } else {
-                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, Server Error."});
-                return;
-            }
-
-        } else if (role === "STUDENT") {
-
-            setUsername(name)
-            setPassword(pw)
-            console.log("Im in Student ")
-
-            console.log("ich gebe " + name + "  und pass " + pw)
-            const student_login_request = await fetch("http://localhost:8000/api/auth/student-login", {
-                method: 'POST',
-                headers: {"Content-Type": "application/json"},
-                body: JSON.stringify({
-                    username: name,
-                    password: pw
-                }),
-            });
-
-            if (!student_login_request.ok) {
-                setLoginPopup({open: true, msg: "Benutzername oder Passwort ist falsch."});
-                setPassword("")
-                setUsername("")
-                return;
-            }
-            // wait until server replays with a login response
-            const jsonLogin = (await student_login_request.json());
-            console.log(jsonLogin)
-            if (isStudentLoginSuccess(jsonLogin)) {
-                setloggedRole("STUDENT")
-                setLoggedPersonID(jsonLogin.student_id)
-                console.log("Alles gut Student ")
-
-            } else if (isStudentLoginError(jsonLogin)) {
-                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."});
-                return;
-
-            } else {
-                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, Server Error."});
-                return;
-            }
-
-        } else if (username === "admin" && password === "admin") {
-            setloggedRole("ADMIN")
-            setUsername("")
-            setPassword("")
-            return <Alert> Willkommen ${name}</Alert>
-        }
-    }
 
     const handleSend = async (message: IChatMessage) => {
         // Die Nachricht aus dem Input in die Megssages packen
@@ -362,25 +114,25 @@ function App() {
         console.log("my Taskid is", jsonTask.task_id)
         setLocalTaskId(taskID);
 
-        fetchResponseWithRetryAndTimeout({taskID: taskID}).then((response) => {
-            console.log("received task response", response);
-            if (response.error) {
-                console.error(response.error);
-            }
-
-            if (response.result) {
-                const newMessage: IChatMessage = {
-                    id: `${Date.now()}-ai`,
-                    sender: "ai",
-                    text: response.result.answer,
-                    timestamp: new Date(),
-                }
-                setMessages((prev) => [...prev, newMessage]);
-                window.avatarSpreche?.(newMessage.text);
-            }
-        }).catch((err) => {
-            console.error("Schade Malade", err)
-        })
+        // fetchResponseWithRetryAndTimeout({taskID: taskID}).then((response) => {
+        //     console.log("received task response", response);
+        //     if (response.error) {
+        //         console.error(response.error);
+        //     }
+        //
+        //     if (response.result) {
+        //         const newMessage: IChatMessage = {
+        //             id: `${Date.now()}-ai`,
+        //             sender: "ai",
+        //             text: response.result.answer,
+        //             timestamp: new Date(),
+        //         }
+        //         setMessages((prev) => [...prev, newMessage]);
+        //         window.avatarSpreche?.(newMessage.text);
+        //     }
+        // }).catch((err) => {
+        //     console.error("Schade Malade", err)
+        // })
     };
 
     const fetchFinalResponse = async () => {
@@ -415,29 +167,80 @@ function App() {
         // trigger the avatar to talk
         window.avatarSpreche?.(answer);
     }
+
     const handleOnboardingComplete = (interests: string[]) => {
-                console.log('User interests:', interests);
-                setCompletedOnboarding(true);
-            };
+        console.log('User interests:', interests);
+        setCompletedOnboarding(true);
+    };
     //TODO: Router zum Login zu verschiedenen Pages
+
+    const isLoggedIn = Boolean(password && username)
+    const isTeacher = role === "TEACHER"
     return (
-    <BrowserRouter>
-      <ThemeProvider theme={theme}>
-        <CssBaseline enableColorScheme/>
-        <Routes>
-          <Route path="/login" element={<Login onLogin={handleLogin} completedOnBoarding={completedOnBoarding} />} />
-          <Route path="/onboarding" element={<ProtectedRoute condition={!!username && !!password}><OnBoarding onComplete={handleOnboardingComplete} name={username!} /></ProtectedRoute>} />
-          <Route path="/" element={<ProtectedRoute condition={!!username && !!password}><AppLayout username={username!} onLogout={handleLogout} teacher={loggedInAsTeacher} /></ProtectedRoute>} >
-            <Route index element={<ProtectedRoute condition={!!username && !!password}><SubjectSelection username={username!} subjects={subjects} /></ProtectedRoute>} />
-            <Route path="classroom/:subject" element={<ProtectedRoute condition={!!username && !!password}><SubjectRoute subjects={subjects} username={username!} messages={messages} onSend={handleSend} fetchFinalResponse={fetchFinalResponse} /></ProtectedRoute>} />
-            <Route path="administration" element={<ProtectedRoute condition={!!username && !!password && !!loggedInAsTeacher}><Administration  /></ProtectedRoute>} />
-            <Route path="schoolclass/:className/:classId/:subject" element={<ProtectedRoute condition={!!username && !!password && !!loggedInAsTeacher}><ClassRoute   addStudent={addStudent} /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Route>
-        </Routes>
-      </ThemeProvider>
-    </BrowserRouter>
-  )
+        <BrowserRouter>
+            <ThemeProvider theme={theme}>
+                <CssBaseline enableColorScheme/>
+                <Routes>
+                    <Route path="/login"
+                           element={<Login
+                               role={role}
+                               setRole={setRole}
+                               username={username}
+                               setUsername={setUsername}
+                               password={password}
+                               setPassword={setPassword}
+                               setLoggedPersonID={setLoggedPersonID}
+                               completedOnBoarding={completedOnBoarding}/>}/>
+
+                    <Route path="/onboarding" element={
+                        <ProtectedRoute condition={isLoggedIn}>
+                            <OnBoarding onComplete={handleOnboardingComplete} name={username}/>
+                        </ProtectedRoute>}
+                    />
+                    <Route path="/"
+                           element={
+                               <ProtectedRoute condition={isLoggedIn}>
+                                   <AppLayout username={username}
+                                              onLogout={handleLogout}
+                                              teacher={isTeacher}/>
+                               </ProtectedRoute>
+                           }>
+                        <Route index element={
+                            <ProtectedRoute condition={isLoggedIn}>
+                                <SubjectSelection username={username} subjects={[]}/>
+                            </ProtectedRoute>}/>
+                        <Route path="/classroom"
+                               element={
+                                   <ProtectedRoute condition={isLoggedIn}>
+                                       <SubjectRoute
+                                           subjects={[]}
+                                           username={username}
+                                           messages={messages}
+                                           onSend={handleSend}
+                                           fetchFinalResponse={fetchFinalResponse}/>
+                                   </ProtectedRoute>
+                               }
+                        />
+                        <Route path="administration"
+                               element={
+                                   <ProtectedRoute condition={isLoggedIn && isTeacher}>
+                                       <Administration/>
+                                   </ProtectedRoute>
+                               }
+                        />
+                        <Route path="schoolclass/:className/:classId/:subject"
+                               element={
+                                   <ProtectedRoute condition={isLoggedIn && isTeacher}>
+                                       <ClassRoute addStudent={addStudent}/>
+                                   </ProtectedRoute>
+                               }
+                        />
+                        <Route path="*" element={<NotFound/>}/>
+                    </Route>
+                </Routes>
+            </ThemeProvider>
+        </BrowserRouter>
+    )
 }
 
 export default App;
