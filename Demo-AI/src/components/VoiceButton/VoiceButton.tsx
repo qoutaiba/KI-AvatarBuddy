@@ -15,7 +15,7 @@ const VoiceButton: React.FC<VoiceButtonProps> = ({onToggle, onTranscript}) => {
     const [error, setError] = useState("");
 
 
-    // Neu: kurzer “grün”-Flash wenn Modell fertig
+    // Neu: kurzer “grün” Flash wenn Modell fertig
     const [readyFlash, setReadyFlash] = useState(false);
     const prevStatusRef = useRef<Status>("loading-model");
 

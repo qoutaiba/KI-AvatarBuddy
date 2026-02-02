@@ -1,24 +1,52 @@
-import { useState } from 'react'
-import { Routes, Route, BrowserRouter } from 'react-router-dom'
-import { ThemeProvider, createTheme, CssBaseline } from '@mui/material'
-import { Login } from './Pages/Login'
-import { SubjectSelection } from './Pages/SubjectSelection'
-import type { IChatMessage } from './Interfaces/IChatMessage'
-import { Subject } from '../src/classes/Subject'
-import { SchoolClass } from './classes/SchoolClass'
-import { NotFound } from './Pages/NotFound'
-import ProtectedRoute from './components/ProtectedRoute/ProtectedRoute'
-import SubjectRoute from './components/SubjectRoute/SubjectRoute'
-import AppLayout from './components/AppLayout/AppLayout'
-import { OnBoarding } from './Pages/OnBoarding'
-import { Administration } from './Pages/Administration'
-import ClassRoute from './components/ClassRoute/ClassRoute'
-import { User } from './classes/User'
+import {useState} from 'react';
+import {createTheme, CssBaseline, ThemeProvider} from '@mui/material';
+import {Login} from './Pages/Login';
+import Classroom from './Pages/Classroom';
+import type {IChatMessage} from './Interfaces/IChatMessage';
 
 type ChatType = {
     task_id: string,
     collection: string
 }
+type TaskResult = {
+    answer: string,
+    documents: string[],
+    scores: number[]
+}
+type TaskResponse = {
+    task_id: string,
+    status: TaskStatus,
+    error?: string,
+    result?: TaskResult
+}
+type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
+type Teacher = {
+    teacher_id: number
+}
+type Student = {
+    "student_id": number,
+    "class_id": number
+}
+
+function isTeacher(person: unknown): person is Teacher {
+    const parsed = person as Teacher;
+    return (
+        parsed &&
+        typeof parsed.teacher_id === "number"
+    );
+}
+
+function isStudent(person: unknown): person is Student {
+    const parsed = person as Student;
+    return (
+        parsed &&
+        typeof parsed.student_id === "number" &&
+        typeof parsed.class_id === "number"
+    );
+}
+
+// here should come isAdmin
+
 
 function isChatResponse(response: unknown): response is ChatType {
     const parsed = response as ChatType;
@@ -30,18 +58,9 @@ function isChatResponse(response: unknown): response is ChatType {
     );
 }
 
-type TaskStatus = "PENDING" | "FAILURE" | "SUCCESS";
-
-function isTaskStatus(response: TaskStatus): response is TaskStatus {
+function isTaskStatus(response: unknown): response is TaskStatus {
     const parsed = response as TaskStatus;
-
     return (parsed && parsed === "PENDING" || parsed == "FAILURE" || parsed == "SUCCESS");
-}
-
-type TaskResult = {
-    answer: string,
-    documents: string[],
-    scores: number[]
 }
 
 function isArrayOf<T extends string | number>(input: unknown, type: T): input is T[] {
@@ -51,36 +70,16 @@ function isArrayOf<T extends string | number>(input: unknown, type: T): input is
 function isTaskResult(input: unknown): input is TaskResult {
     const parsed = input as TaskResult;
 
-    // console.log({
-    //     isAnswer: typeof parsed.answer === "string",
-    //     isDocs: isArrayOf(parsed.documents, "string"),
-    //     isScores: isArrayOf(parsed.scores, "number")
-    // })
     return (
         parsed === undefined || (
             typeof parsed.answer === "string" &&
             isArrayOf(parsed.documents, "string") &&
             isArrayOf(parsed.scores, "number"))
-
     )
-
-}
-
-type TaskResponse = {
-    task_id: string,
-    status: TaskStatus,
-    error?: string,
-    result?: TaskResult
 }
 
 function isTaskResponse(response: unknown): response is TaskResponse {
     const parsed = response as TaskResponse;
-    // console.log({
-    //     isId: typeof parsed.task_id === "string",
-    //     isStatus: isTaskStatus(parsed.status),
-    //     isError: (parsed.error === undefined || typeof parsed.error === "string"),
-    //     isTaskResult: isTaskResult(parsed.result)
-    // })
     return (
         parsed &&
         typeof parsed.task_id === "string" &&
@@ -102,7 +101,6 @@ async function fetchResponseWithRetryAndTimeout(props: { taskID: string }) {
             method: "GET"
         });
 
-        // if (!response.ok) throw new Error(`HTTP ${response.status} ${response.statusText}`);
 
         const json = await response.json();
         if (!isTaskResponse(json)) throw new Error(`Expected a task response of type TaskResponse but received ${JSON.stringify(json)}`);
@@ -133,6 +131,55 @@ const theme = createTheme({
     },
 });
 
+type TeacherLoginSuccess = {
+    teacher_id: number,
+}
+
+type TeacherLoginFailure = { detail: string }
+
+function isTeacherLoginSuccess(response: unknown): response is TeacherLoginSuccess {
+    const parsed = response as TeacherLoginSuccess;
+    return (
+        parsed &&
+        typeof parsed.teacher_id === "number"
+    );
+}
+
+function isTeacherLoginError(response: unknown): response is TeacherLoginFailure {
+    const parsed = response as TeacherLoginFailure;
+    return (
+        parsed &&
+        typeof parsed && typeof parsed.detail === "string"
+    );
+}
+
+type StudentLoginSuccess = {
+    student_id: number,
+    class_id: number
+}
+
+type StudentLoginFailure = { detail: string }
+
+function isStudentLoginSuccess(response: unknown): response is StudentLoginSuccess {
+    const parsed = response as StudentLoginSuccess;
+
+    return (
+        parsed &&
+        typeof parsed.student_id === "number" &&
+        typeof parsed.class_id === "number"
+
+    );
+}
+
+
+function isStudentLoginError(response: unknown): response is StudentLoginFailure {
+    const parsed = response as StudentLoginFailure;
+    return (
+        parsed &&
+        typeof parsed && typeof parsed.detail === "string"
+    );
+}
+
 function App() {
 
     const AI_Response: string[] = [
@@ -144,15 +191,9 @@ function App() {
 
 
     const [completedOnBoarding, setCompletedOnboarding] = useState<boolean>(false)
-    const [loggedInAsTeacher, setLoggedInAsTeacher] = useState<boolean>(() => {
-        return sessionStorage.getItem("isTeacher") === "true"; // nur für Demo
-    })
-    const [username, setUsername] = useState<string | null>(() => {
-        return sessionStorage.getItem("username") // nur für Demo
-    })
-    const [password, setPassword] = useState<string | null>(() => {
-        return sessionStorage.getItem("password") // nur für Demo
-    })
+
+    const [username, setUsername] = useState<string | null>(null)
+    const [password, setPassword] = useState<string | null>(null)
     const [messages, setMessages] = useState<IChatMessage[]>([
         { id: '1', sender: 'ai', text: 'hi', timestamp: new Date() },
     ])
@@ -176,56 +217,121 @@ function App() {
         const addSchoolClass = (newClass: SchoolClass) => {
         setSchoolClasses((prevClasses) => [...prevClasses, newClass]);
     }
-  
+
     const [users, setUsers] = useState<User[]>([])
 
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
+
+    const [openDataIngestion, setOpenDataIngestion] = useState(false)
+
+    const [loginPopup, setLoginPopup] = useState<{ open: boolean, msg: string }>({open: false, msg: ""});
+    const closedLoginPopup = () => setLoginPopup({open: false, msg: ""})
+
+    type Role = "NONE" | "ADMIN" | "STUDENT" | "TEACHER"
+
+    const [loggedRole, setloggedRole] = useState<Role | null>("NONE")
+
+    const [loggedPersonID, setLoggedPersonID] = useState<number>(0)
+
     const addStudent = (newStudent: User) => {
         setUsers((prevUsers) => [...prevUsers, newStudent]);
     }
-    
-    const handleLogin = (name: string, pw: string) => {
+
+    const handleLogin = async (name: string, pw: string, role: Role) => {
+
+        console.count("handleLogin called");
+        console.log("payload", {name, pw, role});
+
         setUsername(name)
         setPassword(pw)
 
-        sessionStorage.setItem("username", name) // nur für Demo
-        sessionStorage.setItem("password", pw) // nur für Demo
 
-        if (name.toLowerCase() === "lehrer") {
-        sessionStorage.setItem("isTeacher", "true") // nur für Demo
-        setLoggedInAsTeacher(true)
-        } else {
-        sessionStorage.setItem("isTeacher", "false")
+        console.log(role + "  wants to ")
+        if (role === "TEACHER") {
+            console.log("Im in Teacher ")
+            const teacher_login_request = await fetch("http://localhost:8000/api/auth/login", {
+                method: 'POST',
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    email: name,
+                    password: pw
+                }),
+            });
+            if (!teacher_login_request.ok) {
+
+                setLoginPopup({open: true, msg: "Benutzername oder Passwort ist falsch."});
+                setPassword("")
+                setUsername("")
+                return;
+            }
+            // wait until server replays with a login response
+            const jsonLogin = (await teacher_login_request.json());
+
+            console.log(jsonLogin)
+            if (isTeacherLoginSuccess(jsonLogin)) {
+                setloggedRole("TEACHER")
+                setLoggedPersonID(jsonLogin.teacher_id)
+                console.log("Alles gut Teacher ")
+                return <Alert> Willkommen ${name}</Alert>
+            } else if (isTeacherLoginError(jsonLogin)) {
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."});
+                return;
+
+            } else {
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, Server Error."});
+                return;
+            }
+
+        } else if (role === "STUDENT") {
+
+            setUsername(name)
+            setPassword(pw)
+            console.log("Im in Student ")
+
+            console.log("ich gebe " + name + "  und pass " + pw)
+            const student_login_request = await fetch("http://localhost:8000/api/auth/student-login", {
+                method: 'POST',
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    username: name,
+                    password: pw
+                }),
+            });
+
+            if (!student_login_request.ok) {
+                setLoginPopup({open: true, msg: "Benutzername oder Passwort ist falsch."});
+                setPassword("")
+                setUsername("")
+                return;
+            }
+            // wait until server replays with a login response
+            const jsonLogin = (await student_login_request.json());
+            console.log(jsonLogin)
+            if (isStudentLoginSuccess(jsonLogin)) {
+                setloggedRole("STUDENT")
+                setLoggedPersonID(jsonLogin.student_id)
+                console.log("Alles gut Student ")
+
+            } else if (isStudentLoginError(jsonLogin)) {
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."});
+                return;
+
+            } else {
+                setLoginPopup({open: true, msg: "Einloggen war nicht möglich, Server Error."});
+                return;
+            }
+
+        } else if (username === "admin" && password === "admin") {
+            setloggedRole("ADMIN")
+            setUsername("")
+            setPassword("")
+            return <Alert> Willkommen ${name}</Alert>
         }
-    }
-    const handleLogout = () => {
-        setUsername(null)
-        setPassword(null)
-
-        sessionStorage.removeItem("username") // nur für Demo
-        sessionStorage.removeItem("password") // nur für Demo
-        sessionStorage.removeItem("isTeacher") // nur für Demo
-
-        setLoggedInAsTeacher(false)
     }
 
     const handleSend = async (message: IChatMessage) => {
-        // Die -Nachricht aus dem Input in die Megssages packen
+        // Die Nachricht aus dem Input in die Megssages packen
         setMessages((prev) => [...prev, message]);
-
-        setTimeout(() => {
-            const randomText =
-            AI_Response[Math.floor(Math.random() * AI_Response.length)];
-            const aiMessage: IChatMessage = {
-                id: Date.now().toString() + '-ai',
-                sender: 'ai',
-                text: randomText,
-                timestamp: new Date(),
-                };  
-                
-        setMessages((prev) => [...prev, aiMessage]);
-        }, 1000);
-
         // Request the server api
         console.log(message)
         const task_request = await fetch("http://localhost:8000/chat", {
@@ -239,11 +345,10 @@ function App() {
             }),
         });
 
-        
+
         if (!task_request.ok) {
             throw new Error(`HTTP ${task_request.status} ${task_request.statusText}`);
         }
-
 
         // wait until server replays with a task_ID
         const jsonTask = (await task_request.json());
