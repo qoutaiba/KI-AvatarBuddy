@@ -212,11 +212,11 @@ function App() {
                         />
 
                         <Route
-                            path="/classroom"
+                            path="classroom/:subject"
                             element={
                                 <ProtectedRoute condition={isLoggedIn}>
                                     <SubjectRoute
-                                        subjects={[]}
+                                        subjects={subjects}
                                         username={username}
                                         messages={messages}
                                         onSend={handleSend}
@@ -225,6 +225,7 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
+
 
                         <Route
                             path="administration"
