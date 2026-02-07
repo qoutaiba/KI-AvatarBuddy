@@ -1,93 +1,157 @@
-import {type Dispatch, type SetStateAction, useState} from "react";
-import {Box, Button, Checkbox, Dialog, FormControlLabel, TextField} from "@mui/material";
+import { type Dispatch, type SetStateAction, useState } from "react";
+import {
+    Alert,
+    Box,
+    Button,
+    Checkbox,
+    Dialog,
+    FormControlLabel,
+    TextField,
+    Typography,
+} from "@mui/material";
 
+import { api } from "../../api/http";
+import { useApiCall } from "../../hooks/useApiCall";
 
-export default function IngestDataToAvatar(prop: { open: boolean, setOpen: Dispatch<SetStateAction<boolean>> }) {
+export default function IngestDataToAvatar(prop: {
+    open: boolean;
+    setOpen: Dispatch<SetStateAction<boolean>>;
+}) {
+    const { open, setOpen } = prop;
 
-    const {open, setOpen} = prop
-    const [ingestedData, setIngestedData] = useState("")
-    const [subject, setSubject] = useState("")
-    const [source, setSource] = useState("")
-    const [status, setStatus] = useState("");
-    const [loading, setLoading] = useState(false);
+    const [ingestedData, setIngestedData] = useState("");
+    const [subject, setSubject] = useState("");
+    const [source, setSource] = useState("");
     const [metaClicked, setMetaClicked] = useState(false);
 
+    // ersetzt das lokale loading/status Handling
+    const { loading, error, setError, call } = useApiCall();
+    const [status, setStatus] = useState<string>("");
 
     type IngestBody = {
-        text: string,
+        text: string;
         metadata?: {
-            "class_id": number,
-            "subject": string,
-            "source": string
-        }
-    }
-    const handleSubmit = async () => {
-        setLoading(true);
-        setStatus("");
-
-        const body: IngestBody = {text: ingestedData,}
-
-        //TODO: Body constructor for the api
-        if (metaClicked) {
-            body.metadata = {source: "ada", subject: "dada", class_id: 12}
-        }
-        await fetch("http://localhost:8000/ingest", {
-            method: 'POST',
-            headers: {"Content-Type": "application/json"},
-            body: JSON.stringify(
-                body
-            ),
-        });
-        setStatus("Erfolg")
-        setIngestedData("")
+            class_id: number;
+            subject: string;
+            source: string;
+        };
     };
 
-    //TODO: onclose --> clear all fields
+    const resetForm = () => {
+        setIngestedData("");
+        setSubject("");
+        setSource("");
+        setMetaClicked(false);
+        setStatus("");
+        setError(null);
+    };
 
-    //TODO: class_id (dropdown the classes )
+    const handleSubmit = async () => {
+        setStatus("");
+        setError(null);
 
-    //TODO: Server start up default collection set up
+        const body: IngestBody = { text: ingestedData.trim() };
 
-    //TODO: PDF Attach file to server
+        if (metaClicked) {
+            // TODO: class_id / source / subject korrekt aus UI übernehmen (statt hardcoded)
+            body.metadata = {
+                source: source.trim(),
+                subject: subject.trim(),
+                class_id: 12,
+            };
+        }
+
+        const ok = await call(() => api.post("/ingest", body));
+        if (!ok) return;
+
+        setStatus("Erfolg");
+        setIngestedData("");
+    };
 
     return (
-        <Dialog open={open}>
-            <Box sx={{padding: "24px", display: "flex", flexDirection: "column", gap: "8px"}}>
-                <TextField onChange={(value) =>
-                    setIngestedData(value.target.value)
-                }
-                           value={ingestedData} label={"Data to ingest.."} required={true}
-                >
+        <Dialog
+            open={open}
+            onClose={() => {
+                setOpen(false);
+                resetForm();
+            }}
+            fullWidth
+            maxWidth="sm"
+        >
+            <Box sx={{ padding: "24px", display: "flex", flexDirection: "column", gap: "12px" }}>
+                <Typography variant="h6">Daten ins Avatar-Wissen ingestieren</Typography>
 
-                </TextField>
+                {error && (
+                    <Alert severity="error" onClose={() => setError(null)}>
+                        {error}
+                    </Alert>
+                )}
 
-                <FormControlLabel control={<Checkbox onClick={() => {
-                    setMetaClicked((prevState) => !prevState)
-                }
-                } value={metaClicked}/>} label={"MetadLabelNeeded"}></FormControlLabel>
+                {status && <Alert severity="success">{status}</Alert>}
 
-                {metaClicked &&
-                    <>
-                        <TextField label={"source"} onChange={
-                            (event) => (setSource(event.target.value))}
-                                   value={source}
+                <TextField
+                    onChange={(e) => setIngestedData(e.target.value)}
+                    value={ingestedData}
+                    label="Data to ingest.."
+                    required
+                    multiline
+                    minRows={4}
+                    disabled={loading}
+                />
 
+                <FormControlLabel
+                    control={
+                        <Checkbox
+                            checked={metaClicked}
+                            onChange={() => setMetaClicked((prev) => !prev)}
+                            disabled={loading}
                         />
-                        <TextField label={"subject"} onChange={
-                            (event) => (setSubject(event.target.value))}
-                                   value={subject}
+                    }
+                    label="Metadaten hinzufügen"
+                />
+
+                {metaClicked && (
+                    <>
+                        <TextField
+                            label="source"
+                            onChange={(e) => setSource(e.target.value)}
+                            value={source}
+                            disabled={loading}
+                        />
+                        <TextField
+                            label="subject"
+                            onChange={(e) => setSubject(e.target.value)}
+                            value={subject}
+                            disabled={loading}
                         />
                     </>
-                }
+                )}
 
-                <Button onClick={handleSubmit} disabled={(!ingestedData.trim())}>
-                    Send Information
-                </Button>
-                <Button onClick={() =>
-                    setOpen(false)
-                }> close</Button>
+                <Box sx={{ display: "flex", gap: 1, justifyContent: "flex-end", mt: 1 }}>
+                    <Button
+                        onClick={() => {
+                            setOpen(false);
+                            resetForm();
+                        }}
+                        variant="outlined"
+                        disabled={loading}
+                    >
+                        Close
+                    </Button>
+
+                    <Button
+                        onClick={handleSubmit}
+                        variant="contained"
+                        disabled={
+                            loading ||
+                            !ingestedData.trim() ||
+                            (metaClicked && (!source.trim() || !subject.trim()))
+                        }
+                    >
+                        {loading ? "Sende..." : "Send Information"}
+                    </Button>
+                </Box>
             </Box>
         </Dialog>
-
-    )
+    );
 }

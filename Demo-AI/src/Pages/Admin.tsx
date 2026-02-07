@@ -1,6 +1,9 @@
-import {useState} from "react";
-import {Alert, Box, Button, Snackbar, TextField, Typography} from "@mui/material";
-import {useNavigate} from "react-router-dom";
+import { useState } from "react";
+import { Alert, Box, Button, Snackbar, TextField, Typography } from "@mui/material";
+import { useNavigate } from "react-router-dom";
+
+import { api } from "../api/http";
+import { useApiCall } from "../hooks/useApiCall";
 
 const Admin: React.FC = () => {
     const [name, setName] = useState("");
@@ -11,19 +14,20 @@ const Admin: React.FC = () => {
     const [snackText, setSnackText] = useState("");
     const [snackSeverity, setSnackSeverity] = useState<"success" | "error">("success");
 
-    const navigate = useNavigate()
+    const navigate = useNavigate();
+
+    const { loading, error, setError, call } = useApiCall();
 
     type TeacherRegisterSuccess = {
-        id: number,
-        name: string,
-        email: string
-    }
+        id: number;
+        name: string;
+        email: string;
+    };
 
-    type TeacherRegisterFailure = { detail: string }
+    type TeacherRegisterFailure = { detail: string };
 
     function isTeacherRegisterSuccess(response: unknown): response is TeacherRegisterSuccess {
         const parsed = response as TeacherRegisterSuccess;
-
         return (
             parsed &&
             typeof parsed.id === "number" &&
@@ -34,33 +38,47 @@ const Admin: React.FC = () => {
 
     function isTeacherRegisterError(response: unknown): response is TeacherRegisterFailure {
         const parsed = response as TeacherRegisterFailure;
-        return (
-            parsed &&
-            typeof parsed && typeof parsed.detail === "string"
-        );
+        return parsed && typeof parsed.detail === "string";
     }
 
+    const isValidEmail = email.includes("@");
 
-    const isValidEmail = email.includes("@")
     const handleAddTeacher = async () => {
+        setError(null);
 
-        const res = await fetch("http://localhost:8000/api/teachers/register", {
-            method: "POST",
-            headers: {
-                "Content-Type": "application/json",
-            },
-            body: JSON.stringify({
-                name: name,
-                email: email,
-                password: password,
-            }),
-        });
+        if (!name.trim() || !email.trim() || !password.trim()) {
+            setSnackSeverity("error");
+            setSnackText("Bitte alle Felder ausfüllen.");
+            setSnackOpen(true);
+            return;
+        }
 
-        const data = await res.json();
+        if (!isValidEmail) {
+            setSnackSeverity("error");
+            setSnackText("Bitte eine gültige Email-Adresse eingeben.");
+            setSnackOpen(true);
+            return;
+        }
+
+        const data = await call(() =>
+            api.post<unknown>("/api/teachers/register", {
+                name: name.trim(),
+                email: email.trim(),
+                password: password.trim(),
+            })
+        );
+
+        if (!data) {
+            // `useApiCall` hat error gesetzt (z.B. 409/400/500)
+            setSnackSeverity("error");
+            setSnackText(error ?? "Teacher konnte nicht registriert werden.");
+            setSnackOpen(true);
+            return;
+        }
 
         if (isTeacherRegisterSuccess(data)) {
             setSnackSeverity("success");
-            setSnackText(`Teacher "${data.name}" was added successfully with  (ID: ${data.id}).`);
+            setSnackText(`Teacher "${data.name}" wurde erfolgreich angelegt (ID: ${data.id}).`);
             setSnackOpen(true);
 
             setName("");
@@ -76,23 +94,18 @@ const Admin: React.FC = () => {
             return;
         }
 
-
-        //TODO: Check the response to see if there is email already exists, and print the ID in case of success
-
-        setName("")
-        setEmail("")
-        setPassword("")
-
-    }
+        setSnackSeverity("error");
+        setSnackText("Unbekannte Server-Antwort.");
+        setSnackOpen(true);
+    };
 
     function hanldeLogOut() {
-        localStorage.clear()
-        navigate("/login")
+        localStorage.clear();
+        navigate("/login");
     }
 
     return (
-        <Box sx={{width: "100vw", height: "100vh", padding: "32px"}}>
-
+        <Box sx={{ width: "100vw", height: "100vh", padding: "32px" }}>
             <Box
                 sx={{
                     display: "flex",
@@ -101,19 +114,12 @@ const Admin: React.FC = () => {
                     mb: 4,
                 }}
             >
-                <Typography variant="h4">
-                    Administration
-                </Typography>
+                <Typography variant="h4">Administration</Typography>
 
-                <Button
-                    variant="outlined"
-                    color="error"
-                    onClick={hanldeLogOut}
-                >
+                <Button variant="outlined" color="error" onClick={hanldeLogOut}>
                     Abmelden
                 </Button>
             </Box>
-
 
             <Typography variant="h3" gutterBottom>
                 Administration
@@ -126,26 +132,22 @@ const Admin: React.FC = () => {
             <Snackbar
                 open={snackOpen}
                 autoHideDuration={4000}
-                onClose={() => {
-                    setSnackOpen(false)
-                }}
-                anchorOrigin={{vertical: "bottom", horizontal: "center"}}
+                onClose={() => setSnackOpen(false)}
+                anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
             >
-                <Alert
-                    onClose={() => setSnackOpen(false)}
-                    severity={snackSeverity}
-                    variant="filled"
-                >
+                <Alert onClose={() => setSnackOpen(false)} severity={snackSeverity} variant="filled">
                     {snackText}
                 </Alert>
             </Snackbar>
-            <Box sx={{maxWidth: 400, mt: 2}}>
+
+            <Box sx={{ maxWidth: 400, mt: 2 }}>
                 <TextField
                     label="Name"
                     fullWidth
                     margin="normal"
                     value={name}
                     onChange={(e) => setName(e.target.value)}
+                    disabled={loading}
                 />
 
                 <TextField
@@ -156,10 +158,9 @@ const Admin: React.FC = () => {
                     onChange={(e) => setEmail(e.target.value)}
                     error={email.length > 0 && !isValidEmail}
                     helperText={
-                        email.length > 0 && !isValidEmail
-                            ? "Bitte eine gültige Email-Adresse eingeben (@ fehlt)"
-                            : ""
+                        email.length > 0 && !isValidEmail ? "Bitte eine gültige Email-Adresse eingeben (@ fehlt)" : ""
                     }
+                    disabled={loading}
                 />
 
                 <TextField
@@ -169,14 +170,16 @@ const Admin: React.FC = () => {
                     margin="normal"
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={loading}
                 />
 
                 <Button
                     variant="contained"
-                    sx={{mt: 2}}
+                    sx={{ mt: 2 }}
                     onClick={handleAddTeacher}
+                    disabled={loading || !name.trim() || !email.trim() || !password.trim() || !isValidEmail}
                 >
-                    Register Teacher
+                    {loading ? "Registriere..." : "Register Teacher"}
                 </Button>
             </Box>
         </Box>
