@@ -9,10 +9,9 @@ interface InputBoxProps {
 
 const InputBox: React.FC<InputBoxProps> = ({ onSend }) => {
   const [input, setInput] = useState<string>('');
-    const handleSend = () => {
 
-
-    const newMsg: IChatMessage = {
+  const handleSend = () => {
+  const newMsg: IChatMessage = {
     id: Date.now().toString(),
     sender: 'user',
     text: input,
@@ -29,6 +28,7 @@ const InputBox: React.FC<InputBoxProps> = ({ onSend }) => {
     }
   };
 
+  // Vlt direkt senden / handleSend auslösen?
   const handleTranscript = (text:string) =>{
     setInput(text)
   }

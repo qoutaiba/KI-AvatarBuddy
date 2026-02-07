@@ -1,7 +1,7 @@
 .status-bar {
   position: absolute;
-  top: 20px;
-  left: 20px;
+  top: 100px;
+  left: 32px;
   background-color: #cce5ff;
   padding: 8px 12px;
   border-radius: 8px;
