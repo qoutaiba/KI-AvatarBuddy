@@ -48,9 +48,10 @@ export default function IngestDataToAvatar(prop: { open: boolean, setOpen: Dispa
 
     //TODO: Server start up default collection set up
 
+    //TODO: PDF Attach file to server
+
     return (
         <Dialog open={open}>
-
             <Box sx={{padding: "24px", display: "flex", flexDirection: "column", gap: "8px"}}>
                 <TextField onChange={(value) =>
                     setIngestedData(value.target.value)
@@ -59,7 +60,6 @@ export default function IngestDataToAvatar(prop: { open: boolean, setOpen: Dispa
                 >
 
                 </TextField>
-
 
                 <FormControlLabel control={<Checkbox onClick={() => {
                     setMetaClicked((prevState) => !prevState)
@@ -79,7 +79,7 @@ export default function IngestDataToAvatar(prop: { open: boolean, setOpen: Dispa
                         />
                     </>
                 }
-                
+
                 <Button onClick={handleSubmit} disabled={(!ingestedData.trim())}>
                     Send Information
                 </Button>

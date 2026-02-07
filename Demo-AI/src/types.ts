@@ -29,5 +29,16 @@ export type StudentLoginSuccess = {
     student_id: number,
     class_id: number
 }
+
+export type StudentProfile = {
+    "student_id": number,
+    "student_name": string,
+    "class_id": number,
+    "class_name": string,
+    "interests": []
+}
+
 export type StudentLoginFailure = { detail: string }
 export type Role = "ADMIN" | "STUDENT" | "TEACHER"
+
+

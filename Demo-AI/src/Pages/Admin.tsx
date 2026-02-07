@@ -1,5 +1,6 @@
 import {useState} from "react";
 import {Alert, Box, Button, Snackbar, TextField, Typography} from "@mui/material";
+import {useNavigate} from "react-router-dom";
 
 const Admin: React.FC = () => {
     const [name, setName] = useState("");
@@ -10,6 +11,7 @@ const Admin: React.FC = () => {
     const [snackText, setSnackText] = useState("");
     const [snackSeverity, setSnackSeverity] = useState<"success" | "error">("success");
 
+    const navigate = useNavigate()
 
     type TeacherRegisterSuccess = {
         id: number,
@@ -83,8 +85,36 @@ const Admin: React.FC = () => {
 
     }
 
+    function hanldeLogOut() {
+        localStorage.clear()
+        navigate("/login")
+    }
+
     return (
         <Box sx={{width: "100vw", height: "100vh", padding: "32px"}}>
+
+            <Box
+                sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    mb: 4,
+                }}
+            >
+                <Typography variant="h4">
+                    Administration
+                </Typography>
+
+                <Button
+                    variant="outlined"
+                    color="error"
+                    onClick={hanldeLogOut}
+                >
+                    Abmelden
+                </Button>
+            </Box>
+
+
             <Typography variant="h3" gutterBottom>
                 Administration
             </Typography>

@@ -1,15 +1,28 @@
-import React, { useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { AppBar, Box, Toolbar, Typography, IconButton, MenuItem, Menu, MenuList, Tooltip, Avatar, ListItemIcon, ListItemText} from '@mui/material'
+import React, {useState} from 'react'
+import {Link, useLocation, useNavigate} from 'react-router-dom'
+import {
+    AppBar,
+    Avatar,
+    Box,
+    IconButton,
+    ListItemIcon,
+    ListItemText,
+    Menu,
+    MenuItem,
+    MenuList,
+    Toolbar,
+    Tooltip,
+    Typography
+} from '@mui/material'
 import MenuIcon from '@mui/icons-material/Menu'
 import SettingsIcon from '@mui/icons-material/Settings'
 import LogoutIcon from '@mui/icons-material/Logout'
 import AccountCircleIcon from '@mui/icons-material/AccountCircle'
 import SchoolIcon from '@mui/icons-material/School';
-import type { INavBarProps } from '../../Interfaces/INavBarProps'
+import type {INavBarProps} from '../../Interfaces/INavBarProps'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings';
 
-const NavBar: React.FC<INavBarProps>  = ({ username, onLogout, teacher }) => {
+const NavBar: React.FC<INavBarProps> = ({username, onLogout, teacher}) => {
     // profile
     const [anchorElProfile, setAnchorElProfile] = useState<null | HTMLElement>(null)
 
@@ -46,20 +59,35 @@ const NavBar: React.FC<INavBarProps>  = ({ username, onLogout, teacher }) => {
         navigate("/administration")
     }
 
+    const handleLogoutClick = () => {
+        onLogout();
+        navigate("/login");
+    };
+
     return (
-        <Box sx={{ flexGrow: 1, p: 2 }}>
+        <Box sx={{flexGrow: 1, p: 2}}>
             <AppBar position="sticky" sx={{
-                    borderRadius: 4,
-                    mx: "auto", 
-                    width: "calc(100% - 32px)"
-                }}>
+                borderRadius: 4,
+                mx: "auto",
+                width: "calc(100% - 32px)"
+            }}>
                 <Toolbar>
-                    <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="h6" sx={{ color: 'inherit', textDecoration: 'none', fontWeight: 700, letterSpacing: '.3rem' }} component={Link} to="/">
+
+
+                    <Box sx={{flexGrow: 1}}>
+                        <Typography variant="h6" sx={{
+                            color: 'inherit',
+                            textDecoration: 'none',
+                            fontWeight: 700,
+                            letterSpacing: '.3rem'
+                        }} component={Link} to="/">
                             AI Buddy
                         </Typography>
+
+
                     </Box>
                     <div>
+
                         <Tooltip title={username} arrow>
                             <IconButton
                                 size="large"
@@ -67,9 +95,24 @@ const NavBar: React.FC<INavBarProps>  = ({ username, onLogout, teacher }) => {
                                 onClick={handleOpenProfile}
                                 color="inherit"
                             >
-                                <Avatar sx={{ width: 32, height: 32, bgcolor: "secondary.main" }}>{username.charAt(0).toUpperCase()}</Avatar>
+                                <Avatar sx={{
+                                    width: 32,
+                                    height: 32,
+                                    bgcolor: "secondary.main"
+                                }}>{username.charAt(0).toUpperCase()}</Avatar>
                             </IconButton>
                         </Tooltip>
+
+                        <Tooltip title="Abmelden" arrow>
+                            <IconButton
+                                size="large"
+                                color="inherit"
+                                onClick={handleLogoutClick}
+                            >
+                                <LogoutIcon/>
+                            </IconButton>
+                        </Tooltip>
+
                         <Menu
                             anchorEl={anchorElProfile}
                             anchorOrigin={{
@@ -85,14 +128,18 @@ const NavBar: React.FC<INavBarProps>  = ({ username, onLogout, teacher }) => {
                             onClose={handleCloseProfile}
                             slotProps={{
                                 paper: {
-                                    sx: { borderRadius: 4 }
+                                    sx: {borderRadius: 4}
                                 }
                             }}
                         >
-                        <MenuList sx={{py: 0}}>
-                            <MenuItem onClick={handleCloseMenu}><ListItemIcon><AccountCircleIcon sx={{ mr: 2 }}/></ListItemIcon><ListItemText sx={{ mr: 1 }}>Profil</ListItemText></MenuItem>
-                            <MenuItem onClick={onLogout}><ListItemIcon><LogoutIcon sx={{ mr: 2 }}/></ListItemIcon><ListItemText sx={{ mr: 1 }}>Abmelden</ListItemText></MenuItem>
-                        </MenuList>
+                            <MenuList sx={{py: 0}}>
+                                <MenuItem onClick={handleCloseMenu}><ListItemIcon><AccountCircleIcon
+                                    sx={{mr: 2}}/></ListItemIcon><ListItemText
+                                    sx={{mr: 1}}>Profil</ListItemText></MenuItem>
+                                <MenuItem onClick={onLogout}><ListItemIcon><LogoutIcon
+                                    sx={{mr: 2}}/></ListItemIcon><ListItemText
+                                    sx={{mr: 1}}>Abmelden</ListItemText></MenuItem>
+                            </MenuList>
                         </Menu>
                     </div>
                     <div>
@@ -103,7 +150,7 @@ const NavBar: React.FC<INavBarProps>  = ({ username, onLogout, teacher }) => {
                                 onClick={handleOpenMenu}
                                 color="inherit"
                             >
-                                <MenuIcon />
+                                <MenuIcon/>
                             </IconButton>
                         </Tooltip>
                         <Menu
@@ -121,20 +168,25 @@ const NavBar: React.FC<INavBarProps>  = ({ username, onLogout, teacher }) => {
                             onClose={handleCloseMenu}
                             slotProps={{
                                 paper: {
-                                    sx: { borderRadius: 4 }
+                                    sx: {borderRadius: 4}
                                 }
                             }}
                         >
                             <MenuList sx={{py: 0}}>
                                 {
                                     location.pathname != "/" &&
-                                    <MenuItem onClick={handleNavToSubjectSelection}><ListItemIcon><SchoolIcon sx={{ mr: 2 }}/></ListItemIcon><ListItemText sx={{ mr: 1 }}>Fachauswahl</ListItemText></MenuItem>
+                                    <MenuItem onClick={handleNavToSubjectSelection}><ListItemIcon><SchoolIcon
+                                        sx={{mr: 2}}/></ListItemIcon><ListItemText
+                                        sx={{mr: 1}}>Fachauswahl</ListItemText></MenuItem>
                                 }
                                 {
                                     teacher && location.pathname != "/administration" &&
-                                    <MenuItem onClick={handleNavToAdministration}><ListItemIcon><AdminPanelSettingsIcon sx={{ mr: 2 }}/></ListItemIcon><ListItemText sx={{ mr: 1 }}>Verwaltung</ListItemText></MenuItem>
+                                    <MenuItem onClick={handleNavToAdministration}><ListItemIcon><AdminPanelSettingsIcon
+                                        sx={{mr: 2}}/></ListItemIcon><ListItemText
+                                        sx={{mr: 1}}>Verwaltung</ListItemText></MenuItem>
                                 }
-                                <MenuItem onClick={handleCloseMenu}><ListItemIcon><SettingsIcon sx={{ mr: 2 }}/></ListItemIcon><ListItemText sx={{ mr: 1 }}>Einstellungen</ListItemText></MenuItem>
+                                <MenuItem onClick={handleCloseMenu}><ListItemIcon><SettingsIcon
+                                    sx={{mr: 2}}/></ListItemIcon><ListItemText sx={{mr: 1}}>Einstellungen</ListItemText></MenuItem>
                             </MenuList>
                         </Menu>
                     </div>

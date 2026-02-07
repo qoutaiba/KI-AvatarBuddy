@@ -12,9 +12,11 @@ import type {Role} from "../types.ts";
 import {
     isStudentLoginError,
     isStudentLoginSuccess,
+    isStudentProfile,
     isTeacherLoginError,
     isTeacherLoginSuccess
 } from "../utils/typeguards.ts";
+import {Subject} from "../classes/Subject";
 
 interface LoginProps {
     username: string,
@@ -25,15 +27,42 @@ interface LoginProps {
     setRole: Dispatch<SetStateAction<Role | null>>,
     setLoggedPersonID: Dispatch<SetStateAction<number>>
     completedOnBoarding: boolean
+    setSubjects: Dispatch<SetStateAction<Subject[]>>;
 }
 
 
 export const Login: React.FC<LoginProps> = (props) => {
-    const {role, password, username, setUsername, setPassword, setRole, setLoggedPersonID} = props
+    const {role, password, username, setUsername, setPassword, setRole, setLoggedPersonID, setSubjects} = props
 
     const navigate = useNavigate();
 
     const [alert, setAlert] = useState<{ open: boolean, message: string }>({open: false, message: ""})
+
+    const checkOnBoardingWithServer = async (student_id: number) => {
+
+        const res = await fetch(`http://localhost:8000/api/user/profile?student_id=${student_id}`, {
+            method: 'GET',
+            headers: {"Content-Type": "application/json"},
+        });
+
+        if (!res.ok) return false;
+
+        const jsonObBoard = await res.json()
+
+        if (isStudentProfile(jsonObBoard)) {
+            console.log("user interestes are :  " + jsonObBoard.interests.length)
+            setSubjects(
+                jsonObBoard.interests.map(
+                    (name: string) => new Subject(name, 0)
+                )
+            );
+
+            return jsonObBoard.interests.length > 0;
+        }
+        return false;
+
+    }
+
 
     const handleLogin = async () => {
         console.log("login payload", {username, password, role});
@@ -89,9 +118,13 @@ export const Login: React.FC<LoginProps> = (props) => {
             console.log(jsonLogin)
             if (isStudentLoginSuccess(jsonLogin)) {
                 setLoggedPersonID(jsonLogin.student_id)
-                console.log("Alles gut Student ")
+                const hasInterest = await checkOnBoardingWithServer(jsonLogin.student_id)
+                if (hasInterest) {
+                    navigate("/")
+                } else {
+                    navigate("/onboarding")
+                }
 
-                navigate("/classroom")
             } else if (isStudentLoginError(jsonLogin)) {
                 setAlert({open: true, message: "Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort."})
             } else {

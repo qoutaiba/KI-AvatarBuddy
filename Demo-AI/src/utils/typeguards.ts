@@ -3,6 +3,7 @@ import type {
     Student,
     StudentLoginFailure,
     StudentLoginSuccess,
+    StudentProfile,
     TaskResponse,
     TaskResult,
     TaskStatus,
@@ -101,5 +102,18 @@ export function isStudentLoginError(response: unknown): response is StudentLogin
     return (
         parsed &&
         typeof parsed && typeof parsed.detail === "string"
+    );
+}
+
+export function isStudentProfile(response: unknown): response is StudentProfile {
+    const parsed = response as StudentProfile;
+    return (
+        parsed &&
+        typeof parsed &&
+        typeof parsed.student_id === "number" &&
+        typeof parsed.student_name === "string" &&
+        typeof parsed.class_id === "number" &&
+        typeof parsed.class_name === "string" &&
+        Array.isArray(parsed.interests)
     );
 }

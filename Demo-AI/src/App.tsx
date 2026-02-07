@@ -14,6 +14,8 @@ import ClassRoute from "./components/ClassRoute/ClassRoute.tsx";
 import SubjectRoute from "./components/SubjectRoute/SubjectRoute.tsx";
 import type {Role} from "./types.ts";
 import {isChatResponse, isTaskResponse} from "./utils/typeguards.ts";
+import Admin from "./Pages/Admin.tsx";
+import type {Subject} from "./classes/Subject.ts";
 
 
 // async function fetchResponseWithRetryAndTimeout(props: { taskID: string }) {
@@ -62,8 +64,9 @@ function App() {
 
     const [username, setUsername] = useState<string>("")
     const [password, setPassword] = useState<string>("")
-    const [, setLoggedPersonID] = useState<number>(0)
+    const [loggedPersonId, setLoggedPersonID] = useState<number>(0)
 
+    const [subjects, setSubjects] = useState<Subject[]>([]);
     const [role, setRole] = useState<Role | null>(null)
     const [messages, setMessages] = useState<IChatMessage[]>([
         {id: '1', sender: 'ai', text: 'hi', timestamp: new Date()},
@@ -72,8 +75,15 @@ function App() {
 
     const [, setUsers] = useState<User[]>([])
 
+
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
     const handleLogout = () => {
+        setUsername("");
+        setPassword("");
+        setRole(null);
+        setSubjects([]);
+        setMessages([]);
+
     }
 
     const addStudent = (newStudent: User) => {
@@ -149,7 +159,7 @@ function App() {
         if (!isTaskResponse(json)) {
             throw new Error(`Expected a TaskResponse but received ${JSON.stringify(json)}`);
         }
-        //const answer: string = (await task_state.text()).trim();
+
 
         const answer = json.result?.answer ?? "kein Answer ist vorhanden"
         console.log("the final answer is " + answer)
@@ -164,18 +174,27 @@ function App() {
             },
         ]);
 
-        // trigger the avatar to talk
         window.avatarSpreche?.(answer);
     }
 
-    const handleOnboardingComplete = (interests: string[]) => {
+    const handleOnboardingComplete = async (interests: string[]) => {
         console.log('User interests:', interests);
         setCompletedOnboarding(true);
+        await fetch("http://localhost:8000/api/user/interests", {
+            method: 'POST',
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({
+                student_id: loggedPersonId,
+                interest_text: interests.toString()
+            }),
+        });
+
     };
-    //TODO: Router zum Login zu verschiedenen Pages
 
     const isLoggedIn = Boolean(password && username)
     const isTeacher = role === "TEACHER"
+    const isStudent = role === "STUDENT"
+    const isAdmin = role === "ADMIN"
     return (
         <BrowserRouter>
             <ThemeProvider theme={theme}>
@@ -190,11 +209,21 @@ function App() {
                                password={password}
                                setPassword={setPassword}
                                setLoggedPersonID={setLoggedPersonID}
-                               completedOnBoarding={completedOnBoarding}/>}/>
+                               completedOnBoarding={completedOnBoarding}
+                               setSubjects={setSubjects}
+                           />}
+
+                    />
 
                     <Route path="/onboarding" element={
-                        <ProtectedRoute condition={isLoggedIn}>
+                        <ProtectedRoute condition={isLoggedIn && isStudent}>
                             <OnBoarding onComplete={handleOnboardingComplete} name={username}/>
+                        </ProtectedRoute>}
+                    />
+
+                    <Route path="/admin" element={
+                        <ProtectedRoute condition={isLoggedIn && isAdmin}>
+                            <Admin/>
                         </ProtectedRoute>}
                     />
                     <Route path="/"
@@ -207,7 +236,7 @@ function App() {
                            }>
                         <Route index element={
                             <ProtectedRoute condition={isLoggedIn}>
-                                <SubjectSelection username={username} subjects={[]}/>
+                                <SubjectSelection username={username} subjects={subjects}/>
                             </ProtectedRoute>}/>
                         <Route path="/classroom"
                                element={

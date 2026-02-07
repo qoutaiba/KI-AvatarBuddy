@@ -2,6 +2,7 @@ import React from 'react'
 import Classroom from '../../Pages/Classroom'
 import type {IChatMessage} from '../../Interfaces/IChatMessage'
 import {Subject} from '../../classes/Subject'
+import {Navigate, useLocation} from "react-router-dom";
 
 interface SubjectRouteProps {
     subjects: Subject[] | null;
@@ -12,11 +13,20 @@ interface SubjectRouteProps {
 }
 
 const SubjectRoute: React.FC<SubjectRouteProps> = ({username, messages, onSend, fetchFinalResponse}) => {
-    // const { subject } = useParams<{ subject: string }>();
+    type LocationState = {
+        subject?: Subject;
+    };
 
-    // if (!subject || subjects === null || !subjects.some(s => s.name.toLowerCase() === subject.toLowerCase())) return <Navigate to="/404" replace />;
+    const location = useLocation();
+    const state = location.state as LocationState | null;
+    const selectedSubject = state?.subject;
 
-    return <Classroom username={username} messages={messages} onSend={onSend} fetchFinalResponse={fetchFinalResponse}/>;
+    if (!selectedSubject) {
+        return <Navigate to="/" replace/>;
+    }
+
+    return <Classroom username={username} subject={selectedSubject} messages={messages} onSend={onSend}
+                      fetchFinalResponse={fetchFinalResponse}/>;
 }
 
 export default SubjectRoute
