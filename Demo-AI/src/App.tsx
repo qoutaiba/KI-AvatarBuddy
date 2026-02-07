@@ -5,7 +5,7 @@ import {
     Snackbar,
     ThemeProvider,
 } from "@mui/material";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import type { IChatMessage } from "./Interfaces/IChatMessage.ts";
 import type { User } from "./classes/User.ts";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -19,55 +19,125 @@ import { Administration } from "./Pages/Administration.tsx";
 import ClassRoute from "./components/ClassRoute/ClassRoute.tsx";
 import SubjectRoute from "./components/SubjectRoute/SubjectRoute.tsx";
 import type { Role } from "./types.ts";
-import { isChatResponse, isTaskResponse } from "./utils/typeguards.ts";
+import { isChatResponse, isTaskResponse, isStudentProfile } from "./utils/typeguards.ts";
 import Admin from "./Pages/Admin.tsx";
-import type { Subject } from "./classes/Subject.ts";
+import { Subject } from "./classes/Subject.ts";
 
 import { api } from "./api/http";
 import { useApiCall } from "./hooks/useApiCall";
 
+const SESSION_KEY = "demo-ai.session";
+
+type Session = {
+    username: string;
+    role: Role;
+    loggedPersonId: number;
+    completedOnBoarding: boolean;
+    subjects?: string[]; // subject names
+};
+
+function loadSession(): Session | null {
+    try {
+        const raw = localStorage.getItem(SESSION_KEY);
+        if (!raw) return null;
+        const parsed = JSON.parse(raw) as Session;
+        if (!parsed || typeof parsed !== "object") return null;
+        if (!parsed.role || !parsed.username) return null;
+        return parsed;
+    } catch {
+        return null;
+    }
+}
+
 function App() {
     const theme = createTheme({
-        colorSchemes: {
-            dark: true,
-        },
+        colorSchemes: { dark: true },
         palette: {
-            primary: {
-                main: "#1976d2",
-            },
-            secondary: {
-                main: "#9c27b0",
-            },
-            background: {
-                default: "#f0f8ff",
-            },
+            primary: { main: "#1976d2" },
+            secondary: { main: "#9c27b0" },
+            background: { default: "#f0f8ff" },
         },
     });
 
-    const [completedOnBoarding, setCompletedOnboarding] =
-        useState<boolean>(false);
+    const initialSession = useMemo(() => loadSession(), []);
 
-    const [username, setUsername] = useState<string>("");
-    const [password, setPassword] = useState<string>("");
-    const [loggedPersonId, setLoggedPersonID] = useState<number>(0);
+    const [completedOnBoarding, setCompletedOnboarding] = useState<boolean>(
+        initialSession?.completedOnBoarding ?? false
+    );
 
-    const [subjects, setSubjects] = useState<Subject[]>([]);
-    const [role, setRole] = useState<Role | null>(null);
+    const [username, setUsername] = useState<string>(initialSession?.username ?? "");
+    const [password, setPassword] = useState<string>(""); // NICHT persistieren
+    const [loggedPersonId, setLoggedPersonID] = useState<number>(
+        initialSession?.loggedPersonId ?? 0
+    );
+
+    const [subjects, setSubjects] = useState<Subject[]>(
+        (initialSession?.subjects ?? []).map((name) => new Subject(name, 0))
+    );
+
+    const [role, setRole] = useState<Role | null>(initialSession?.role ?? null);
+
     const [messages, setMessages] = useState<IChatMessage[]>([
         { id: "1", sender: "ai", text: "hi", timestamp: new Date() },
     ]);
 
     const [, setUsers] = useState<User[]>([]);
-
     const [localTaskId, setLocalTaskId] = useState<string | null>(null);
 
-    const { error: apiError, setError: setApiError, call } =
-        useApiCall();
+    const { error: apiError, setError: setApiError, call } = useApiCall();
+
+    // Session speichern (bei Änderungen)
+    useEffect(() => {
+        if (!role || !username) {
+            localStorage.removeItem(SESSION_KEY);
+            return;
+        }
+
+        const payload: Session = {
+            username,
+            role,
+            loggedPersonId,
+            completedOnBoarding,
+            subjects: subjects.map((s: any) => String(s?.name ?? ""))?.filter(Boolean),
+        };
+
+        localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
+    }, [username, role, loggedPersonId, completedOnBoarding, subjects]);
+
+    useEffect(() => {
+        let cancelled = false;
+
+        (async () => {
+            if (role !== "STUDENT") return;
+            if (!loggedPersonId) return;
+            if (subjects.length > 0) return;
+
+            const profile = await call(() =>
+                api.get<unknown>(`/api/user/profile?student_id=${loggedPersonId}`)
+            );
+            if (!profile || cancelled) return;
+
+            if (isStudentProfile(profile)) {
+                const subj = profile.interests.map((n: string) => new Subject(n, 0));
+                if (cancelled) return;
+                setSubjects(subj);
+                setCompletedOnboarding(profile.interests.length > 0);
+            }
+        })();
+
+        return () => {
+            cancelled = true;
+        };
+    }, [role, loggedPersonId, subjects.length, call]);
 
     const handleLogout = () => {
+        localStorage.removeItem(SESSION_KEY);
+
         setUsername("");
         setPassword("");
         setRole(null);
+        setLoggedPersonID(0);
+        setCompletedOnboarding(false);
         setSubjects([]);
         setMessages([]);
         setLocalTaskId(null);
@@ -94,9 +164,7 @@ function App() {
 
         if (!isChatResponse(jsonTask)) {
             setApiError(
-                `Unerwartete Server-Antwort (Chat). Received: ${JSON.stringify(
-                    jsonTask
-                )}`
+                `Unerwartete Server-Antwort (Chat). Received: ${JSON.stringify(jsonTask)}`
             );
             return;
         }
@@ -146,9 +214,14 @@ function App() {
         );
 
         if (!ok) return;
+
+        setSubjects(interests.map((n) => new Subject(n, 0)));
     };
 
-    const isLoggedIn = Boolean(password && username);
+    const isLoggedIn = Boolean(
+        role && username && (role === "ADMIN" || loggedPersonId > 0)
+    );
+
     const isTeacher = role === "TEACHER";
     const isStudent = role === "STUDENT";
     const isAdmin = role === "ADMIN";
@@ -158,7 +231,6 @@ function App() {
             <ThemeProvider theme={theme}>
                 <CssBaseline enableColorScheme />
 
-                {/* Globaler Error-Toast für App-API Calls */}
                 <Snackbar
                     open={Boolean(apiError)}
                     autoHideDuration={6000}
@@ -230,18 +302,17 @@ function App() {
                             }
                         />
 
+                        {/* Refresh-fest: subject kommt aus der URL */}
                         <Route
-                            path="/classroom"
+                            path="classroom/:subject"
                             element={
                                 <ProtectedRoute condition={isLoggedIn}>
                                     <SubjectRoute
-                                        subjects={[]}
+                                        subjects={subjects}
                                         username={username}
                                         messages={messages}
                                         onSend={handleSend}
                                         fetchFinalResponse={fetchFinalResponse}
-                                        // optional: falls du im SubjectRoute UI blocken willst:
-                                        // loading={apiLoading}
                                     />
                                 </ProtectedRoute>
                             }
