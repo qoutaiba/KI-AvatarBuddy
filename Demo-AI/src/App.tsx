@@ -33,7 +33,7 @@ type Session = {
     role: Role;
     loggedPersonId: number;
     completedOnBoarding: boolean;
-    subjects?: string[]; // subject names
+    subjects?: string[];
 };
 
 function loadSession(): Session | null {
@@ -86,7 +86,6 @@ function App() {
 
     const { error: apiError, setError: setApiError, call } = useApiCall();
 
-    // Session speichern (bei Änderungen)
     useEffect(() => {
         if (!role || !username) {
             localStorage.removeItem(SESSION_KEY);
@@ -98,7 +97,9 @@ function App() {
             role,
             loggedPersonId,
             completedOnBoarding,
-            subjects: subjects.map((s: any) => String(s?.name ?? ""))?.filter(Boolean),
+            subjects: subjects
+                .map((s) => s.name)
+                .filter((n): n is string => Boolean(n)),
         };
 
         localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
@@ -218,10 +219,7 @@ function App() {
         setSubjects(interests.map((n) => new Subject(n, 0)));
     };
 
-    const isLoggedIn = Boolean(
-        role && username && (role === "ADMIN" || loggedPersonId > 0)
-    );
-
+    const isLoggedIn = Boolean(role && username && (role === "ADMIN" || loggedPersonId > 0));
     const isTeacher = role === "TEACHER";
     const isStudent = role === "STUDENT";
     const isAdmin = role === "ADMIN";
@@ -231,16 +229,8 @@ function App() {
             <ThemeProvider theme={theme}>
                 <CssBaseline enableColorScheme />
 
-                <Snackbar
-                    open={Boolean(apiError)}
-                    autoHideDuration={6000}
-                    onClose={() => setApiError(null)}
-                >
-                    <Alert
-                        onClose={() => setApiError(null)}
-                        severity="error"
-                        variant="filled"
-                    >
+                <Snackbar open={Boolean(apiError)} autoHideDuration={6000} onClose={() => setApiError(null)}>
+                    <Alert onClose={() => setApiError(null)} severity="error" variant="filled">
                         {apiError}
                     </Alert>
                 </Snackbar>
@@ -285,11 +275,7 @@ function App() {
                         path="/"
                         element={
                             <ProtectedRoute condition={isLoggedIn}>
-                                <AppLayout
-                                    username={username}
-                                    onLogout={handleLogout}
-                                    teacher={isTeacher}
-                                />
+                                <AppLayout username={username} onLogout={handleLogout} teacher={isTeacher} />
                             </ProtectedRoute>
                         }
                     >
@@ -302,7 +288,6 @@ function App() {
                             }
                         />
 
-                        {/* Refresh-fest: subject kommt aus der URL */}
                         <Route
                             path="classroom/:subject"
                             element={
@@ -318,11 +303,12 @@ function App() {
                             }
                         />
 
+                        {/* ✅ FIX: teacherId durchreichen (statt hardcoded im Component) */}
                         <Route
                             path="administration"
                             element={
-                                <ProtectedRoute condition={isLoggedIn && isTeacher}>
-                                    <Administration />
+                                <ProtectedRoute condition={isLoggedIn && isTeacher && loggedPersonId > 0}>
+                                    <Administration teacherId={loggedPersonId} />
                                 </ProtectedRoute>
                             }
                         />

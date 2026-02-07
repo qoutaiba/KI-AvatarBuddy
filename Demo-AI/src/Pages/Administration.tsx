@@ -8,9 +8,11 @@ import IngestDataToAvatar from "../components/DataIngestion/IngestDataToAvatar.t
 import { api } from "../api/http";
 import { useApiCall } from "../hooks/useApiCall";
 
-const TEACHER_ID = 3; // TODO: aus Login/State ziehen statt hardcoden
+type AdministrationProps = {
+    teacherId: number;
+};
 
-export const Administration: React.FC = () => {
+export const Administration: React.FC<AdministrationProps> = ({ teacherId }) => {
     const [loadedClasses, setLoadedClasses] = useState<SchoolClass[]>([]);
     const [newClassName, setNewClassName] = useState<string>("");
     const [newSubject, setNewSubject] = useState<string>("");
@@ -22,7 +24,11 @@ export const Administration: React.FC = () => {
     const { loading, error, setError, call } = useApiCall();
 
     const fetchClasses = useCallback(async () => {
-        const data = await call(() => api.get<unknown>("/api/classes"));
+        if (!teacherId) return;
+
+        const data = await call(() =>
+            api.get<unknown>(`/api/classes?teacher_id=${teacherId}`)
+        );
         if (!data) return;
 
         if (!Array.isArray(data)) {
@@ -31,7 +37,7 @@ export const Administration: React.FC = () => {
         }
 
         setLoadedClasses(data as SchoolClass[]);
-    }, [call, setError]);
+    }, [call, setError, teacherId]);
 
     useEffect(() => {
         // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -44,12 +50,12 @@ export const Administration: React.FC = () => {
         const name = newClassName.trim();
         const subject = newSubject.trim();
         const grade_level = gradeLvl.trim();
-        if (!name || !subject || !grade_level) return;
+        if (!name || !subject || !grade_level || !teacherId) return;
 
         const created = await call(() =>
             api.post<unknown>("/api/classes", {
                 name,
-                teacher_id: TEACHER_ID,
+                teacher_id: teacherId,
                 grade_level,
                 subject,
             })
@@ -65,28 +71,17 @@ export const Administration: React.FC = () => {
     };
 
     const handleDeleteClass = async () => {
+        if (!teacherId) return;
         if (toDeleteId === null || Number.isNaN(toDeleteId)) return;
 
         const ok = await call(() =>
-            api.del<unknown>(`/api/classes/${toDeleteId}?teacher_id=${TEACHER_ID}`)
+            api.del<unknown>(`/api/classes/${toDeleteId}?teacher_id=${teacherId}`)
         );
         if (!ok) return;
 
         setToDeleteId(null);
-        await fetchClasses(); // konsistent zum Backend
+        await fetchClasses();
     };
-
-    // const handleRegisterTeacher = async () => {
-    //   const data = await call(() =>
-    //     api.post<unknown>("/api/teachers/register", {
-    //       name: "Justin",
-    //       email: "demqqo@example.com",
-    //       password: "tesqqt123",
-    //     })
-    //   );
-    //   if (!data) return;
-    //   console.log("Teacher registered successfully:", data);
-    // };
 
     return (
         <Box sx={{ width: "100vw", height: "100vh", overflowY: "auto" }}>
@@ -142,7 +137,13 @@ export const Administration: React.FC = () => {
                     <Button
                         variant="contained"
                         onClick={handleAddClass}
-                        disabled={loading || !newClassName.trim() || !newSubject.trim() || !gradeLvl.trim()}
+                        disabled={
+                            loading ||
+                            !teacherId ||
+                            !newClassName.trim() ||
+                            !newSubject.trim() ||
+                            !gradeLvl.trim()
+                        }
                     >
                         {loading ? "..." : "Klasse hinzufügen"}
                     </Button>
@@ -165,29 +166,32 @@ export const Administration: React.FC = () => {
                         variant="contained"
                         color="secondary"
                         onClick={handleDeleteClass}
-                        disabled={loading || toDeleteId === null}
+                        disabled={loading || !teacherId || toDeleteId === null}
                     >
                         {loading ? "..." : "Klasse löschen"}
                     </Button>
 
-                    <Button variant="outlined" onClick={fetchClasses} disabled={loading}>
+                    <Button variant="outlined" onClick={fetchClasses} disabled={loading || !teacherId}>
                         Aktualisieren
                     </Button>
 
-                    <Button variant="outlined" onClick={() => setOpenDataIngestion(true)} disabled={loading}>
+                    <Button
+                        variant="outlined"
+                        onClick={() => setOpenDataIngestion(true)}
+                        disabled={loading}
+                    >
                         Ingest öffnen
                     </Button>
                 </Box>
             </Box>
 
-            {/* Optional: Lehrer hinzufügen Button hier entfernen */}
-            {/* <Box sx={{ mx: "32px" }}>
-        <Button variant="contained" onClick={handleRegisterTeacher} disabled={loading}>
-          Lehrer hinzufügen
-        </Button>
-      </Box> */}
-
-            <Grid container spacing={4} justifyContent="flex-start" alignItems="flex-start" sx={{ m: "32px" }}>
+            <Grid
+                container
+                spacing={4}
+                justifyContent="flex-start"
+                alignItems="flex-start"
+                sx={{ m: "32px" }}
+            >
                 {loadedClasses.map((schoolClass) => (
                     <Grid key={schoolClass.id} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
                         <ClassCard id={schoolClass.id} name={schoolClass.name} subject={schoolClass.subject} />
