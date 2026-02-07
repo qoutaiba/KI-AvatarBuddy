@@ -1,182 +1,201 @@
-import React, {useEffect, useState} from 'react'
-import {Box, Button, Grid, TextField, Typography} from '@mui/material'
+import React, { useCallback, useEffect, useState } from "react";
+import { Alert, Box, Button, Grid, TextField, Typography } from "@mui/material";
 
-import ClassCard from '../components/ClassCard/ClassCard';
-import type {SchoolClass} from '../classes/SchoolClass';
+import ClassCard from "../components/ClassCard/ClassCard";
+import type { SchoolClass } from "../classes/SchoolClass";
 import IngestDataToAvatar from "../components/DataIngestion/IngestDataToAvatar.tsx";
 
+import { api } from "../api/http";
+import { useApiCall } from "../hooks/useApiCall";
+
+const TEACHER_ID = 3; // TODO: aus Login/State ziehen statt hardcoden
 
 export const Administration: React.FC = () => {
     const [loadedClasses, setLoadedClasses] = useState<SchoolClass[]>([]);
-    const [newClassName, setNewClassName] = useState<string>('');
-    const [newSubject, setNewSubject] = useState<string>('');
-    const [gradeLvl, setGradeLvl] = useState<string>('');
+    const [newClassName, setNewClassName] = useState<string>("");
+    const [newSubject, setNewSubject] = useState<string>("");
+    const [gradeLvl, setGradeLvl] = useState<string>("");
     const [toDeleteId, setToDeleteId] = useState<number | null>(null);
 
-    const [openDataIngestion, setOpenDataIngestion] = useState(false)
+    const [openDataIngestion, setOpenDataIngestion] = useState(false);
 
-    const handleOnClick = async () => {
-        try {
-            const response = await fetch("http://localhost:8000/api/classes", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    name: newClassName,
-                    teacher_id: 3,
-                    grade_level: gradeLvl,
-                    subject: newSubject,
-                }),
+    const { loading, error, setError, call } = useApiCall();
 
+    const fetchClasses = useCallback(async () => {
+        const data = await call(() => api.get<unknown>("/api/classes"));
+        if (!data) return;
 
-            });
-
-            const classResponse = await fetch("http://localhost:8000/api/classes");
-            if (!classResponse.ok) {
-                throw new Error(`HTTP ${classResponse.status}`);
-            }
-
-            const ClassData: SchoolClass[] = await classResponse.json();
-            setLoadedClasses(ClassData);
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-            setNewClassName('');
-            setNewSubject('');
-            setGradeLvl('');
-            const data = await response.json();
-            console.log("Success:", data);
-        } catch (error) {
-            console.error("Error creating class:", error);
+        if (!Array.isArray(data)) {
+            setError("Unerwartete Server-Antwort beim Laden der Klassen.");
+            return;
         }
-    };
 
-    const handleRegisterTeacher = async () => {
-        try {
-            const response = await fetch("http://localhost:8000/api/teachers/register", {
-                method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                },
-                body: JSON.stringify({
-                    name: "Justin",
-                    email: "demqqo@example.com",
-                    password: "tesqqt123",
-                }),
-            });
+        setLoadedClasses(data as SchoolClass[]);
+    }, [call, setError]);
 
-            if (!response.ok) {
-                throw new Error(`HTTP error! Status: ${response.status}`);
-            }
-
-            const data = await response.json();
-            console.log("Teacher registered successfully:", data);
-        } catch (error) {
-            console.error("Error registering teacher:", error);
-        }
-    };
-    /*
-    const handleDeleteClass = async () => {
-     return 0;
-    };
-    */
     useEffect(() => {
-        const fetchClasses = async () => {
-            try {
-                const response = await fetch("http://localhost:8000/api/classes");
-                if (!response.ok) {
-                    throw new Error(`HTTP ${response.status}`);
-                }
-
-                const data: SchoolClass[] = await response.json();
-                setLoadedClasses(data);
-            } catch (err) {
-                console.error("Fehler beim Laden der Klassen:", err);
-            }
-        };
-
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         fetchClasses();
-    }, []);
+    }, [fetchClasses]);
+
+    const handleAddClass = async () => {
+        setError(null);
+
+        const name = newClassName.trim();
+        const subject = newSubject.trim();
+        const grade_level = gradeLvl.trim();
+        if (!name || !subject || !grade_level) return;
+
+        const created = await call(() =>
+            api.post<unknown>("/api/classes", {
+                name,
+                teacher_id: TEACHER_ID,
+                grade_level,
+                subject,
+            })
+        );
+
+        if (!created) return;
+
+        setNewClassName("");
+        setNewSubject("");
+        setGradeLvl("");
+
+        await fetchClasses();
+    };
+
+    const handleDeleteClass = async () => {
+        if (toDeleteId === null || Number.isNaN(toDeleteId)) return;
+
+        const ok = await call(() =>
+            api.del<unknown>(`/api/classes/${toDeleteId}?teacher_id=${TEACHER_ID}`)
+        );
+        if (!ok) return;
+
+        setToDeleteId(null);
+        await fetchClasses(); // konsistent zum Backend
+    };
+
+    // const handleRegisterTeacher = async () => {
+    //   const data = await call(() =>
+    //     api.post<unknown>("/api/teachers/register", {
+    //       name: "Justin",
+    //       email: "demqqo@example.com",
+    //       password: "tesqqt123",
+    //     })
+    //   );
+    //   if (!data) return;
+    //   console.log("Teacher registered successfully:", data);
+    // };
 
     return (
-        <Box sx={{width: "100vw", height: "100vh", overflowY: "auto"}}>
-            <Box sx={{marginLeft: '32px', marginRight: '32px', marginTop: '32px'}}>
-                <Typography variant='h3' component='h1' gutterBottom
-                            sx={{ml: 0.5, overflow: "hidden", textOverflow: "ellipsis"}}>Verwaltung</Typography>
-                <Typography variant='subtitle1' sx={{ml: 0.5}}>Wählen Sie eine Klasse, um zu beginnen.</Typography>
-
-                <IngestDataToAvatar open={openDataIngestion} setOpen={setOpenDataIngestion}/>
-
-
-                <TextField
-                    label="Klasse"
-                    variant="outlined"
-                    size="small"
-                    value={newClassName}
-                    onChange={(e) => setNewClassName(e.target.value)}
-                />
-                <TextField
-                    label="Fach"
-                    variant="outlined"
-                    size="small"
-                    value={newSubject}
-                    onChange={(e) => setNewSubject(e.target.value)}
-                />
-                <TextField
-                    label="Klassenstufe"
-                    variant="outlined"
-                    size="small"
-                    value={gradeLvl}
-                    onChange={(e) => setGradeLvl(e.target.value)}
-                />
-                <Button
-                    variant="contained"
-                    color="primary"
-                    onClick={handleOnClick}
+        <Box sx={{ width: "100vw", height: "100vh", overflowY: "auto" }}>
+            <Box sx={{ mx: "32px", mt: "32px" }}>
+                <Typography
+                    variant="h3"
+                    component="h1"
+                    gutterBottom
+                    sx={{ ml: 0.5, overflow: "hidden", textOverflow: "ellipsis" }}
                 >
-                    Klasse Hinzufügen
-                </Button>
-                <TextField
-                    label="ID zum Löschen"
-                    variant="outlined"
-                    size="small"
-                    value={toDeleteId !== null ? toDeleteId : ''}
-                    onChange={(e) => setToDeleteId(Number(e.target.value))}
-                />
-                <Button
-                    variant="contained"
-                    color="secondary"
-                    // onClick={() => handleDeleteClass(toDeleteId)}
-                >
-                    Klasse Löschen
-                </Button>
+                    Verwaltung
+                </Typography>
+                <Typography variant="subtitle1" sx={{ ml: 0.5 }}>
+                    Wählen Sie eine Klasse, um zu beginnen.
+                </Typography>
 
+                <IngestDataToAvatar open={openDataIngestion} setOpen={setOpenDataIngestion} />
 
+                {error && (
+                    <Box sx={{ mt: 2 }}>
+                        <Alert severity="error" onClose={() => setError(null)}>
+                            {error}
+                        </Alert>
+                    </Box>
+                )}
+
+                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap", mt: 2 }}>
+                    <TextField
+                        label="Klasse"
+                        variant="outlined"
+                        size="small"
+                        value={newClassName}
+                        onChange={(e) => setNewClassName(e.target.value)}
+                        disabled={loading}
+                    />
+                    <TextField
+                        label="Fach"
+                        variant="outlined"
+                        size="small"
+                        value={newSubject}
+                        onChange={(e) => setNewSubject(e.target.value)}
+                        disabled={loading}
+                    />
+                    <TextField
+                        label="Klassenstufe"
+                        variant="outlined"
+                        size="small"
+                        value={gradeLvl}
+                        onChange={(e) => setGradeLvl(e.target.value)}
+                        disabled={loading}
+                    />
+
+                    <Button
+                        variant="contained"
+                        onClick={handleAddClass}
+                        disabled={loading || !newClassName.trim() || !newSubject.trim() || !gradeLvl.trim()}
+                    >
+                        {loading ? "..." : "Klasse hinzufügen"}
+                    </Button>
+
+                    <TextField
+                        label="ID zum Löschen"
+                        variant="outlined"
+                        size="small"
+                        value={toDeleteId ?? ""}
+                        onChange={(e) => {
+                            const v = e.target.value;
+                            if (v.trim() === "") return setToDeleteId(null);
+                            const n = Number(v);
+                            setToDeleteId(Number.isNaN(n) ? null : n);
+                        }}
+                        disabled={loading}
+                    />
+
+                    <Button
+                        variant="contained"
+                        color="secondary"
+                        onClick={handleDeleteClass}
+                        disabled={loading || toDeleteId === null}
+                    >
+                        {loading ? "..." : "Klasse löschen"}
+                    </Button>
+
+                    <Button variant="outlined" onClick={fetchClasses} disabled={loading}>
+                        Aktualisieren
+                    </Button>
+
+                    <Button variant="outlined" onClick={() => setOpenDataIngestion(true)} disabled={loading}>
+                        Ingest öffnen
+                    </Button>
+                </Box>
             </Box>
-            <Button
-                variant="contained"
-                color="primary"
-                onClick={handleRegisterTeacher}
-            >
-                Lehrer Hinzufügen
-            </Button>
-            <Grid container spacing={4} justifyContent={'flex-start'} alignItems={'flex-start'} sx={{margin: '32px'}}>
-                {loadedClasses.map((schoolClass) => (
-                    <Grid key={schoolClass.id} size={{xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4}}>
 
-                        <ClassCard id={schoolClass.id} name={schoolClass.name} subject={schoolClass.subject}/>
+            {/* Optional: Lehrer hinzufügen Button hier entfernen */}
+            {/* <Box sx={{ mx: "32px" }}>
+        <Button variant="contained" onClick={handleRegisterTeacher} disabled={loading}>
+          Lehrer hinzufügen
+        </Button>
+      </Box> */}
+
+            <Grid container spacing={4} justifyContent="flex-start" alignItems="flex-start" sx={{ m: "32px" }}>
+                {loadedClasses.map((schoolClass) => (
+                    <Grid key={schoolClass.id} size={{ xs: 12, sm: 6, md: 4, lg: 3, xl: 2.4 }}>
+                        <ClassCard id={schoolClass.id} name={schoolClass.name} subject={schoolClass.subject} />
                     </Grid>
                 ))}
             </Grid>
-
-            <Button onClick={() => setOpenDataIngestion((prevState) => !prevState)}>
-                open ingest data
-            </Button>
-
         </Box>
     );
 };
 
-
-
+export default Administration;
