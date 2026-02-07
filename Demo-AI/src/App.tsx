@@ -5,7 +5,7 @@ import {
     Snackbar,
     ThemeProvider,
 } from "@mui/material";
-import { useEffect, useMemo, useState } from "react";
+import { useState } from "react";
 import type { IChatMessage } from "./Interfaces/IChatMessage.ts";
 import type { User } from "./classes/User.ts";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -19,35 +19,12 @@ import { Administration } from "./Pages/Administration.tsx";
 import ClassRoute from "./components/ClassRoute/ClassRoute.tsx";
 import SubjectRoute from "./components/SubjectRoute/SubjectRoute.tsx";
 import type { Role } from "./types.ts";
-import { isChatResponse, isTaskResponse, isStudentProfile } from "./utils/typeguards.ts";
+import { isChatResponse, isTaskResponse } from "./utils/typeguards.ts";
 import Admin from "./Pages/Admin.tsx";
-import { Subject } from "./classes/Subject.ts";
+import type { Subject } from "./classes/Subject.ts";
 
 import { api } from "./api/http";
 import { useApiCall } from "./hooks/useApiCall";
-
-const SESSION_KEY = "demo-ai.session";
-
-type Session = {
-    username: string;
-    role: Role;
-    loggedPersonId: number;
-    completedOnBoarding: boolean;
-    subjects?: string[];
-};
-
-function loadSession(): Session | null {
-    try {
-        const raw = localStorage.getItem(SESSION_KEY);
-        if (!raw) return null;
-        const parsed = JSON.parse(raw) as Session;
-        if (!parsed || typeof parsed !== "object") return null;
-        if (!parsed.role || !parsed.username) return null;
-        return parsed;
-    } catch {
-        return null;
-    }
-}
 
 function App() {
     const theme = createTheme({
@@ -59,24 +36,14 @@ function App() {
         },
     });
 
-    const initialSession = useMemo(() => loadSession(), []);
+    const [completedOnBoarding, setCompletedOnboarding] = useState<boolean>(false);
 
-    const [completedOnBoarding, setCompletedOnboarding] = useState<boolean>(
-        initialSession?.completedOnBoarding ?? false
-    );
+    const [username, setUsername] = useState<string>("");
+    const [password, setPassword] = useState<string>("");
+    const [loggedPersonId, setLoggedPersonID] = useState<number>(0);
 
-    const [username, setUsername] = useState<string>(initialSession?.username ?? "");
-    const [password, setPassword] = useState<string>(""); // NICHT persistieren
-    const [loggedPersonId, setLoggedPersonID] = useState<number>(
-        initialSession?.loggedPersonId ?? 0
-    );
-
-    const [subjects, setSubjects] = useState<Subject[]>(
-        (initialSession?.subjects ?? []).map((name) => new Subject(name, 0))
-    );
-
-    const [role, setRole] = useState<Role | null>(initialSession?.role ?? null);
-
+    const [subjects, setSubjects] = useState<Subject[]>([]);
+    const [role, setRole] = useState<Role | null>(null);
     const [messages, setMessages] = useState<IChatMessage[]>([
         { id: "1", sender: "ai", text: "hi", timestamp: new Date() },
     ]);
@@ -86,54 +53,7 @@ function App() {
 
     const { error: apiError, setError: setApiError, call } = useApiCall();
 
-    useEffect(() => {
-        if (!role || !username) {
-            localStorage.removeItem(SESSION_KEY);
-            return;
-        }
-
-        const payload: Session = {
-            username,
-            role,
-            loggedPersonId,
-            completedOnBoarding,
-            subjects: subjects
-                .map((s) => s.name)
-                .filter((n): n is string => Boolean(n)),
-        };
-
-        localStorage.setItem(SESSION_KEY, JSON.stringify(payload));
-    }, [username, role, loggedPersonId, completedOnBoarding, subjects]);
-
-    useEffect(() => {
-        let cancelled = false;
-
-        (async () => {
-            if (role !== "STUDENT") return;
-            if (!loggedPersonId) return;
-            if (subjects.length > 0) return;
-
-            const profile = await call(() =>
-                api.get<unknown>(`/api/user/profile?student_id=${loggedPersonId}`)
-            );
-            if (!profile || cancelled) return;
-
-            if (isStudentProfile(profile)) {
-                const subj = profile.interests.map((n: string) => new Subject(n, 0));
-                if (cancelled) return;
-                setSubjects(subj);
-                setCompletedOnboarding(profile.interests.length > 0);
-            }
-        })();
-
-        return () => {
-            cancelled = true;
-        };
-    }, [role, loggedPersonId, subjects.length, call]);
-
     const handleLogout = () => {
-        localStorage.removeItem(SESSION_KEY);
-
         setUsername("");
         setPassword("");
         setRole(null);
@@ -215,11 +135,10 @@ function App() {
         );
 
         if (!ok) return;
-
-        setSubjects(interests.map((n) => new Subject(n, 0)));
     };
 
-    const isLoggedIn = Boolean(role && username && (role === "ADMIN" || loggedPersonId > 0));
+    const isLoggedIn = Boolean(role && username && loggedPersonId > 0);
+
     const isTeacher = role === "TEACHER";
     const isStudent = role === "STUDENT";
     const isAdmin = role === "ADMIN";
@@ -229,7 +148,11 @@ function App() {
             <ThemeProvider theme={theme}>
                 <CssBaseline enableColorScheme />
 
-                <Snackbar open={Boolean(apiError)} autoHideDuration={6000} onClose={() => setApiError(null)}>
+                <Snackbar
+                    open={Boolean(apiError)}
+                    autoHideDuration={6000}
+                    onClose={() => setApiError(null)}
+                >
                     <Alert onClose={() => setApiError(null)} severity="error" variant="filled">
                         {apiError}
                     </Alert>
@@ -266,7 +189,7 @@ function App() {
                         path="/admin"
                         element={
                             <ProtectedRoute condition={isLoggedIn && isAdmin}>
-                                <Admin />
+                                <Admin creatorId={loggedPersonId} />
                             </ProtectedRoute>
                         }
                     />
@@ -289,11 +212,11 @@ function App() {
                         />
 
                         <Route
-                            path="classroom/:subject"
+                            path="/classroom"
                             element={
                                 <ProtectedRoute condition={isLoggedIn}>
                                     <SubjectRoute
-                                        subjects={subjects}
+                                        subjects={[]}
                                         username={username}
                                         messages={messages}
                                         onSend={handleSend}
@@ -303,11 +226,10 @@ function App() {
                             }
                         />
 
-                        {/* ✅ FIX: teacherId durchreichen (statt hardcoded im Component) */}
                         <Route
                             path="administration"
                             element={
-                                <ProtectedRoute condition={isLoggedIn && isTeacher && loggedPersonId > 0}>
+                                <ProtectedRoute condition={isLoggedIn && isTeacher}>
                                     <Administration teacherId={loggedPersonId} />
                                 </ProtectedRoute>
                             }

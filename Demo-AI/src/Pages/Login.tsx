@@ -1,4 +1,4 @@
-import React, { type Dispatch, type SetStateAction, useState } from "react";
+import React, { type Dispatch, type SetStateAction } from "react";
 import { useNavigate } from "react-router-dom";
 import {
     Alert,
@@ -44,6 +44,16 @@ interface LoginProps {
     setSubjects: Dispatch<SetStateAction<Subject[]>>;
 }
 
+type DevLoginSuccess = {
+    dev_id: number;
+    role: string; // "dev"
+};
+
+function isDevLoginSuccess(x: unknown): x is DevLoginSuccess {
+    const p = x as DevLoginSuccess;
+    return !!p && typeof p.dev_id === "number" && typeof p.role === "string";
+}
+
 export const Login: React.FC<LoginProps> = (props) => {
     const {
         role,
@@ -57,19 +67,11 @@ export const Login: React.FC<LoginProps> = (props) => {
     } = props;
 
     const navigate = useNavigate();
-
-    // zentraler Loading/Error State für diese Seite
     const { loading, error, setError, call } = useApiCall();
-
-    // falls du unbedingt das alte {open,message}-State-Format behalten willst:
-    // du brauchst es nicht mehr – wir nutzen `error` direkt.
-    const [localAlertOpen, setLocalAlertOpen] = useState(false);
 
     const checkOnBoardingWithServer = async (student_id: number) => {
         try {
-            const jsonObBoard = await api.get<unknown>(
-                `/api/user/profile?student_id=${student_id}`
-            );
+            const jsonObBoard = await api.get<unknown>(`/api/user/profile?student_id=${student_id}`);
 
             if (isStudentProfile(jsonObBoard)) {
                 setSubjects(jsonObBoard.interests.map((name: string) => new Subject(name, 0)));
@@ -77,27 +79,23 @@ export const Login: React.FC<LoginProps> = (props) => {
             }
             return false;
         } catch {
-            // Profil-Check soll Login nicht “hart” blockieren → einfach so tun als ob keine Interessen da sind
             return false;
         }
     };
 
     const handleLogin = async () => {
         setError(null);
-        setLocalAlertOpen(false);
 
         if (role === "TEACHER") {
             const jsonLogin = await call(() =>
                 api.post<unknown>("/api/auth/login", {
-                    email: username, // TODO: username oder email?
+                    email: username,
                     password,
                 })
             );
 
             if (!jsonLogin) {
-                // API Fehler (z.B. 401/500) → freundlich überschreiben
                 setError("Benutzername oder Passwort ist falsch.");
-                setLocalAlertOpen(true);
                 return;
             }
 
@@ -106,10 +104,8 @@ export const Login: React.FC<LoginProps> = (props) => {
                 navigate("/administration");
             } else if (isTeacherLoginError(jsonLogin)) {
                 setError("Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort.");
-                setLocalAlertOpen(true);
             } else {
                 setError("Unbekannter Fehler. Versuch später noch mal");
-                setLocalAlertOpen(true);
             }
             return;
         }
@@ -124,7 +120,6 @@ export const Login: React.FC<LoginProps> = (props) => {
 
             if (!jsonLogin) {
                 setError("Benutzername oder Passwort ist falsch.");
-                setLocalAlertOpen(true);
                 return;
             }
 
@@ -135,25 +130,39 @@ export const Login: React.FC<LoginProps> = (props) => {
                 navigate(hasInterest ? "/" : "/onboarding");
             } else if (isStudentLoginError(jsonLogin)) {
                 setError("Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort.");
-                setLocalAlertOpen(true);
             } else {
                 setError("Einloggen war nicht möglich, Server Error.");
-                setLocalAlertOpen(true);
             }
             return;
         }
 
-        // Admin (ohne Backend-Call, wie vorher)
-        if (role === "ADMIN" && username === "admin" && password === "admin") {
+        if (role === "ADMIN") {
+            const json = await call(() =>
+                api.post<unknown>("/api/auth/dev-login", {
+                    email: username,
+                    password,
+                })
+            );
+
+            if (!json) {
+                setError("Admin-Login fehlgeschlagen. Bitte E-Mail/Passwort prüfen.");
+                return;
+            }
+
+            if (!isDevLoginSuccess(json)) {
+                setError("Unerwartete Server-Antwort beim Admin-Login.");
+                return;
+            }
+
+            setLoggedPersonID(json.dev_id);
             navigate("/admin");
             return;
         }
 
         setError("Bitte Rolle wählen und Zugangsdaten eingeben.");
-        setLocalAlertOpen(true);
     };
 
-    const showError = Boolean(error) && (localAlertOpen || Boolean(error));
+    const showError = Boolean(error);
 
     return (
         <div className="login-container">
@@ -173,7 +182,6 @@ export const Login: React.FC<LoginProps> = (props) => {
                             onClick={() => {
                                 setRole("TEACHER");
                                 setError(null);
-                                setLocalAlertOpen(false);
                             }}
                         >
                             <SchoolIcon sx={{ fontSize: 64 }} />
@@ -185,7 +193,6 @@ export const Login: React.FC<LoginProps> = (props) => {
                             onClick={() => {
                                 setRole("STUDENT");
                                 setError(null);
-                                setLocalAlertOpen(false);
                             }}
                         >
                             <PersonIcon sx={{ fontSize: 64 }} />
@@ -197,7 +204,6 @@ export const Login: React.FC<LoginProps> = (props) => {
                             onClick={() => {
                                 setRole("ADMIN");
                                 setError(null);
-                                setLocalAlertOpen(false);
                             }}
                         >
                             <AdminPanelSettingsIcon sx={{ fontSize: 64 }} />
@@ -234,21 +240,21 @@ export const Login: React.FC<LoginProps> = (props) => {
 
                         {showError && (
                             <Fade in={showError}>
-                                <Alert severity="error" onClose={() => setLocalAlertOpen(false)}>
+                                <Alert severity="error" onClose={() => setError(null)}>
                                     {error}
                                 </Alert>
                             </Fade>
                         )}
 
                         <TextField
-                            label="Dein Benutzername"
+                            label={role === "TEACHER" || role === "ADMIN" ? "Deine E-Mail" : "Dein Benutzername"}
                             variant="outlined"
                             fullWidth
                             value={username}
                             onChange={(e) => setUsername(e.target.value.trim())}
                             error={Boolean(error)}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter" && !(username === "" || password === "") && !loading) {
+                                if (e.key === "Enter" && username !== "" && password !== "" && !loading) {
                                     handleLogin();
                                 }
                             }}
@@ -263,7 +269,7 @@ export const Login: React.FC<LoginProps> = (props) => {
                             onChange={(e) => setPassword(e.target.value.trim())}
                             error={Boolean(error)}
                             onKeyDown={(e) => {
-                                if (e.key === "Enter" && !(username === "" || password === "") && !loading) {
+                                if (e.key === "Enter" && username !== "" && password !== "" && !loading) {
                                     handleLogin();
                                 }
                             }}
@@ -276,9 +282,7 @@ export const Login: React.FC<LoginProps> = (props) => {
                             endIcon={<LoginIcon />}
                             disabled={loading || !role || username === "" || password === ""}
                         >
-                            <Typography variant="button">
-                                {loading ? "Anmelden..." : "Anmelden"}
-                            </Typography>
+                            <Typography variant="button">{loading ? "Anmelden..." : "Anmelden"}</Typography>
                         </Button>
                     </Stack>
                 </CardContent>

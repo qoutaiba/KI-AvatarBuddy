@@ -5,7 +5,11 @@ import { useNavigate } from "react-router-dom";
 import { api } from "../api/http";
 import { useApiCall } from "../hooks/useApiCall";
 
-const Admin: React.FC = () => {
+type AdminProps = {
+    creatorId: number; // dev/admin teacher id aus /api/auth/dev-login
+};
+
+const Admin: React.FC<AdminProps> = ({ creatorId }) => {
     const [name, setName] = useState("");
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
@@ -15,7 +19,6 @@ const Admin: React.FC = () => {
     const [snackSeverity, setSnackSeverity] = useState<"success" | "error">("success");
 
     const navigate = useNavigate();
-
     const { loading, error, setError, call } = useApiCall();
 
     type TeacherRegisterSuccess = {
@@ -46,6 +49,13 @@ const Admin: React.FC = () => {
     const handleAddTeacher = async () => {
         setError(null);
 
+        if (!creatorId || creatorId <= 0) {
+            setSnackSeverity("error");
+            setSnackText("Kein creator_id vorhanden – bitte als Dev/Admin über Backend einloggen.");
+            setSnackOpen(true);
+            return;
+        }
+
         if (!name.trim() || !email.trim() || !password.trim()) {
             setSnackSeverity("error");
             setSnackText("Bitte alle Felder ausfüllen.");
@@ -61,7 +71,7 @@ const Admin: React.FC = () => {
         }
 
         const data = await call(() =>
-            api.post<unknown>("/api/teachers/register", {
+            api.post<unknown>(`/api/teachers/register?creator_id=${creatorId}`, {
                 name: name.trim(),
                 email: email.trim(),
                 password: password.trim(),
@@ -69,7 +79,6 @@ const Admin: React.FC = () => {
         );
 
         if (!data) {
-            // `useApiCall` hat error gesetzt (z.B. 409/400/500)
             setSnackSeverity("error");
             setSnackText(error ?? "Teacher konnte nicht registriert werden.");
             setSnackOpen(true);
@@ -106,14 +115,7 @@ const Admin: React.FC = () => {
 
     return (
         <Box sx={{ width: "100vw", height: "100vh", padding: "32px" }}>
-            <Box
-                sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "space-between",
-                    mb: 4,
-                }}
-            >
+            <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between", mb: 4 }}>
                 <Typography variant="h4">Administration</Typography>
 
                 <Button variant="outlined" color="error" onClick={hanldeLogOut}>
@@ -177,7 +179,14 @@ const Admin: React.FC = () => {
                     variant="contained"
                     sx={{ mt: 2 }}
                     onClick={handleAddTeacher}
-                    disabled={loading || !name.trim() || !email.trim() || !password.trim() || !isValidEmail}
+                    disabled={
+                        loading ||
+                        creatorId <= 0 ||
+                        !name.trim() ||
+                        !email.trim() ||
+                        !password.trim() ||
+                        !isValidEmail
+                    }
                 >
                     {loading ? "Registriere..." : "Register Teacher"}
                 </Button>
