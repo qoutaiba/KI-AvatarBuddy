@@ -26,6 +26,9 @@ import type { Subject } from "./classes/Subject.ts";
 import { api } from "./api/http";
 import { useApiCall } from "./hooks/useApiCall";
 
+const CHAT_COLLECTION = "avatar_docs";
+const DEFAULT_SESSION_ID = "default";
+
 function App() {
     const theme = createTheme({
         colorSchemes: { dark: true },
@@ -53,6 +56,11 @@ function App() {
 
     const { error: apiError, setError: setApiError, call } = useApiCall();
 
+    const isTeacher = role === "TEACHER";
+    const isStudent = role === "STUDENT";
+    const isAdmin = role === "ADMIN";
+    const isLoggedIn = Boolean(role && username && loggedPersonId > 0);
+
     const handleLogout = () => {
         setUsername("");
         setPassword("");
@@ -70,15 +78,23 @@ function App() {
     };
 
     const handleSend = async (message: IChatMessage) => {
+        // User-Nachricht direkt anzeigen
         setMessages((prev) => [...prev, message]);
 
+        // Payload für /chat bauen
+        const payload: Record<string, unknown> = {
+            message: message.text,
+            session_id: DEFAULT_SESSION_ID,
+            collection: CHAT_COLLECTION,
+        };
+
+        // student_id nur setzen, wenn ein Schüler eingeloggt ist
+        if (isStudent && loggedPersonId > 0) {
+            payload.student_id = loggedPersonId;
+        }
+
         const jsonTask = await call(() =>
-            api.post<unknown>("/chat", {
-                message: message.text,
-                session_id: "default",
-                collection: "avatar_docs",
-                student_id: 0,
-            })
+            api.post<unknown>("/chat", payload)
         );
 
         if (!jsonTask) return;
@@ -99,29 +115,53 @@ function App() {
             return;
         }
 
-        const json = await call(() => api.get<unknown>(`/tasks/${localTaskId}`));
-        if (!json) return;
+        // kleines Helferlein zum Warten
+        const sleep = (ms: number) => new Promise((res) => setTimeout(res, ms));
 
-        if (!isTaskResponse(json)) {
-            setApiError(
-                `Unerwartete Server-Antwort (Task). Received: ${JSON.stringify(json)}`
-            );
+        const maxAttempts = 15; // z.B. bis zu 15s warten
+        const delayMs = 1000;
+
+        for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+            const json = await call(() => api.get<unknown>(`/tasks/${localTaskId}`));
+            if (!json) return;
+
+            if (!isTaskResponse(json)) {
+                setApiError(
+                    `Unerwartete Server-Antwort (Task). Received: ${JSON.stringify(json)}`
+                );
+                return;
+            }
+
+            // Wenn der Task noch läuft → kurz warten und erneut probieren
+            if (json.status === "PENDING") {
+                await sleep(delayMs);
+                continue;
+            }
+
+            if (json.status === "FAILURE") {
+                setApiError("Der Server konnte keine Antwort erzeugen.");
+                return;
+            }
+
+            // SUCCESS – jetzt sollte result.answer da sein
+            const answer = json.result?.answer ?? "kein Answer ist vorhanden";
+
+            setMessages((prev) => [
+                ...prev,
+                {
+                    id: `${Date.now()}-ai`,
+                    sender: "ai",
+                    text: answer,
+                    timestamp: new Date(),
+                },
+            ]);
+
+            window.avatarSpreche?.(answer);
             return;
         }
 
-        const answer = json.result?.answer ?? "kein Answer ist vorhanden";
-
-        setMessages((prev) => [
-            ...prev,
-            {
-                id: `${Date.now()}-ai`,
-                sender: "ai",
-                text: answer,
-                timestamp: new Date(),
-            },
-        ]);
-
-        window.avatarSpreche?.(answer);
+        // Falls wir hier rausfallen, hat es zu lange gedauert
+        setApiError("Antwort braucht ungewöhnlich lange – bitte später erneut versuchen.");
     };
 
     const handleOnboardingComplete = async (interests: string[]) => {
@@ -136,12 +176,6 @@ function App() {
 
         if (!ok) return;
     };
-
-    const isLoggedIn = Boolean(role && username && loggedPersonId > 0);
-
-    const isTeacher = role === "TEACHER";
-    const isStudent = role === "STUDENT";
-    const isAdmin = role === "ADMIN";
 
     return (
         <BrowserRouter>
@@ -225,7 +259,6 @@ function App() {
                                 </ProtectedRoute>
                             }
                         />
-
 
                         <Route
                             path="administration"
