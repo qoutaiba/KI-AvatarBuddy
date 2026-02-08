@@ -1,3 +1,5 @@
+/* eslint-disable react-hooks/set-state-in-effect */
+
 import React, { useCallback, useEffect, useState } from "react";
 import {
     Alert,
@@ -13,6 +15,7 @@ import {
     TextField,
     Typography,
 } from "@mui/material";
+import { useParams } from "react-router-dom";
 
 import type { User } from "../classes/User";
 import { generatePassword } from "../components/HelperFunctions/GeneratePassword";
@@ -20,8 +23,8 @@ import { api } from "../api/http";
 import { useApiCall } from "../hooks/useApiCall";
 
 interface IStudentListProps {
-    classId: number;
-    className: string;
+    classId?: number;      // optional – kann über Route kommen
+    className?: string;
     addStudent: (student: User) => void;
 }
 
@@ -33,19 +36,49 @@ type StudentFromBackend = {
     password?: string;
 };
 
-const TEACHER_ID = 3; // TODO: aus Login/State ziehen statt hardcoden
+type RouteParams = {
+    classId?: string;
+    className?: string;
+};
 
-const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStudent }) => {
+const StudentList: React.FC<IStudentListProps> = ({
+                                                      classId: propClassId,
+                                                      className: propClassName,
+                                                      addStudent,
+                                                  }) => {
+    // ---- Route-Parameter ----
+    const { classId: classIdParam, className: classNameParam } = useParams<RouteParams>();
+
+    const classId = classIdParam ? Number(classIdParam) : propClassId ?? 0;
+    const className = classNameParam ?? propClassName ?? "className";
+
+    // ---- State ----
     const [students, setStudents] = useState<User[]>([]);
-    const [newName, setNewName] = useState<string>("");
-    const [newUsername, setNewUsername] = useState<string>("");
+    const [newName, setNewName] = useState("");
+    const [newUsername, setNewUsername] = useState("");
     const [deleteId, setDeleteId] = useState<number | null>(null);
+
+    const [teacherId] = useState<number | null>(() => {
+        if (typeof window === "undefined") return null;
+        const raw = window.localStorage.getItem("teacher_id");
+        const n = raw ? Number(raw) : NaN;
+        return Number.isNaN(n) ? null : n;
+    });
 
     const { loading, error, setError, call } = useApiCall();
 
     const fetchStudents = useCallback(async () => {
+        if (!classId) {
+            setError("Keine gültige Klassen-ID (classId) vorhanden.");
+            return;
+        }
+        if (teacherId === null) {
+            setError("Kein gültiger Teacher-Login gefunden (teacher_id fehlt).");
+            return;
+        }
+
         const data = await call(() =>
-            api.get<unknown>(`/api/classes/${classId}/students?teacher_id=${TEACHER_ID}`)
+            api.get<unknown>(`/api/classes/${classId}/students?teacher_id=${teacherId}`)
         );
 
         if (!data) return;
@@ -62,16 +95,16 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
                 currentClass: className,
             }))
         );
-    }, [call, classId, className, setError]);
+    }, [call, classId, className, teacherId, setError]);
 
     useEffect(() => {
-        fetchStudents();
+        void fetchStudents();
     }, [fetchStudents]);
 
     const handleAddStudent = async () => {
         const name = newName.trim();
         const username = newUsername.trim();
-        if (!name || !username) return;
+        if (!name || !username || !classId) return;
 
         const password = generatePassword();
 
@@ -93,7 +126,7 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
             name: json.name,
             username: json.username,
             class_id: json.class_id,
-            password, // Hinweis: Passwörter im UI anzeigen ist nicht ideal – später entfernen/als "copy once" lösen
+            password,
             currentClass: className,
         };
 
@@ -107,8 +140,13 @@ const StudentList: React.FC<IStudentListProps> = ({ classId, className, addStude
     const handleDeleteStudent = async () => {
         if (deleteId === null || Number.isNaN(deleteId)) return;
 
+        if (teacherId === null) {
+            setError("Kein gültiger Teacher-Login gefunden (teacher_id fehlt).");
+            return;
+        }
+
         const ok = await call(() =>
-            api.del<unknown>(`/api/user/student/${deleteId}?teacher_id=${TEACHER_ID}`)
+            api.del<unknown>(`/api/user/student/${deleteId}?teacher_id=${teacherId}`)
         );
 
         if (!ok) return;

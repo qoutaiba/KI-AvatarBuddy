@@ -54,6 +54,14 @@ function isDevLoginSuccess(x: unknown): x is DevLoginSuccess {
     return !!p && typeof p.dev_id === "number" && typeof p.role === "string";
 }
 
+function resetAuthStorage() {
+    if (typeof window === "undefined") return;
+    window.localStorage.removeItem("role");
+    window.localStorage.removeItem("teacher_id");
+    window.localStorage.removeItem("student_id");
+    window.localStorage.removeItem("dev_id");
+}
+
 export const Login: React.FC<LoginProps> = (props) => {
     const {
         role,
@@ -86,6 +94,7 @@ export const Login: React.FC<LoginProps> = (props) => {
     const handleLogin = async () => {
         setError(null);
 
+        // ---------- TEACHER ----------
         if (role === "TEACHER") {
             const jsonLogin = await call(() =>
                 api.post<unknown>("/api/auth/login", {
@@ -100,16 +109,24 @@ export const Login: React.FC<LoginProps> = (props) => {
             }
 
             if (isTeacherLoginSuccess(jsonLogin)) {
+                // lokale Auth-Infos setzen
+                resetAuthStorage();
+                if (typeof window !== "undefined") {
+                    window.localStorage.setItem("role", "teacher");
+                    window.localStorage.setItem("teacher_id", String(jsonLogin.teacher_id));
+                }
+
                 setLoggedPersonID(jsonLogin.teacher_id);
                 navigate("/administration");
             } else if (isTeacherLoginError(jsonLogin)) {
                 setError("Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort.");
             } else {
-                setError("Unbekannter Fehler. Versuch später noch mal");
+                setError("Unbekannter Fehler. Versuche es später noch einmal.");
             }
             return;
         }
 
+        // ---------- STUDENT ----------
         if (role === "STUDENT") {
             const jsonLogin = await call(() =>
                 api.post<unknown>("/api/auth/student-login", {
@@ -124,18 +141,25 @@ export const Login: React.FC<LoginProps> = (props) => {
             }
 
             if (isStudentLoginSuccess(jsonLogin)) {
+                resetAuthStorage();
+                if (typeof window !== "undefined") {
+                    window.localStorage.setItem("role", "student");
+                    window.localStorage.setItem("student_id", String(jsonLogin.student_id));
+                }
+
                 setLoggedPersonID(jsonLogin.student_id);
 
                 const hasInterest = await checkOnBoardingWithServer(jsonLogin.student_id);
                 navigate(hasInterest ? "/" : "/onboarding");
             } else if (isStudentLoginError(jsonLogin)) {
-                setError("Einloggen war nicht möglich, bitte prüfen Sie E-Mail/Passwort.");
+                setError("Einloggen war nicht möglich, bitte prüfen Sie Benutzername/Passwort.");
             } else {
                 setError("Einloggen war nicht möglich, Server Error.");
             }
             return;
         }
 
+        // ---------- ADMIN / DEV ----------
         if (role === "ADMIN") {
             const json = await call(() =>
                 api.post<unknown>("/api/auth/dev-login", {
@@ -152,6 +176,12 @@ export const Login: React.FC<LoginProps> = (props) => {
             if (!isDevLoginSuccess(json)) {
                 setError("Unerwartete Server-Antwort beim Admin-Login.");
                 return;
+            }
+
+            resetAuthStorage();
+            if (typeof window !== "undefined") {
+                window.localStorage.setItem("role", "dev");
+                window.localStorage.setItem("dev_id", String(json.dev_id));
             }
 
             setLoggedPersonID(json.dev_id);
