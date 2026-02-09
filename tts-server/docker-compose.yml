@@ -10,3 +10,4 @@ services:
       - PIPER_VOICE=de_DE-kerstin-low
     volumes:
       - ./piper:/app/piper:ro
+      - ./tts-out:/app/tts-out
