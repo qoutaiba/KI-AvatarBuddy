@@ -6,12 +6,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ca-certificates \
   && rm -rf /var/lib/apt/lists/*
 
-# Create a venv and install piper-tts inside it (avoids PEP 668)
+# Virtuelle Umgebung anlegen und piper-tts + pathvalidate installieren
 RUN python3 -m venv /opt/venv \
   && /opt/venv/bin/pip install --no-cache-dir --upgrade pip \
-  && /opt/venv/bin/pip install --no-cache-dir piper-tts
+  && /opt/venv/bin/pip install --no-cache-dir piper-tts pathvalidate
 
-# Make the venv the default python/pip in PATH
+# venv in PATH einhängen
 ENV PATH="/opt/venv/bin:$PATH"
 
 WORKDIR /app
@@ -23,9 +23,12 @@ COPY tsconfig.json ./
 COPY src ./src
 RUN npm run build
 
+# Standard-Umgebungsvariablen im Container
 ENV PORT=5179 \
     PIPER_DIR=/app/piper \
-    PIPER_VOICE=de_DE-kerstin-low
+    PIPER_VOICE=de_DE-kerstin-low \
+    OUT_DIR=/app/tts-out
 
 EXPOSE 5179
+
 CMD ["node", "dist/tts-server.js"]

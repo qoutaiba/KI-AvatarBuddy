@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import "./Character.css";
 
-// @ts-expect-error -- external TalkingHead library has no TS types
+// externe Lib ohne Typen – keine Typdefinitionen vorhanden
+// @ts-expect-error external lib without types
 import { TalkingHead } from "../../lib/talkinghead.mjs";
 
 const HEAD_AUDIO_URL = new URL("../../headaudio/headaudio.mjs", import.meta.url).href;
@@ -33,13 +34,11 @@ type TalkingHeadPublic = {
   stopSpeaking?: () => void;
   dispose?: () => void;
 
-  // mögliche Gain-Nodes (alle optional)
   audioSpeechGainNode?: SpeechGainNode;
   audioSpeechGain?: SpeechGainNode;
   speechGainNode?: SpeechGainNode;
   gainSpeech?: SpeechGainNode;
 
-  // Fallback für weitere Properties
   [key: string]: unknown;
 };
 
@@ -66,6 +65,8 @@ function getTtsUrl(): string {
   if (typeof window === "undefined") {
     return "";
   }
+
+  // Immer direkt auf den TTS-Server (Docker mapped 5179 -> Host)
   const { protocol, hostname } = window.location;
   return `${protocol}//${hostname}:${TTS_PORT}/api/tts`;
 }
@@ -156,6 +157,7 @@ export default function Character() {
               }
 
               if (speechNode.gain) {
+                // Lautstärke leicht erhöhen
                 speechNode.gain.value = 2.0;
               }
             }
@@ -189,6 +191,8 @@ export default function Character() {
               return;
             }
 
+            console.log("[Avatar] Rufe TTS auf:", ttsUrl, "Text:", text);
+
             if (head.audioCtx.state !== "running") {
               try {
                 await head.audioCtx.resume();
@@ -197,7 +201,6 @@ export default function Character() {
               }
             }
 
-            // ggf. vorherige Wiedergabe stoppen
             if (typeof head.stopSpeaking === "function") {
               try {
                 head.stopSpeaking();
@@ -222,9 +225,12 @@ export default function Character() {
             }
 
             const ct = res.headers.get("Content-Type") || "";
-            if (!ct.startsWith("audio/")) {
+            const isAudio =
+                ct.startsWith("audio/") || ct === "application/octet-stream";
+
+            if (!isAudio) {
               console.error(
-                  "TTS returned non-audio:",
+                  "TTS returned unexpected Content-Type:",
                   ct,
                   await res.text().catch(() => "")
               );
@@ -232,13 +238,18 @@ export default function Character() {
             }
 
             const wavBytes = await res.arrayBuffer();
-            const audioBuffer = await head.audioCtx.decodeAudioData(wavBytes.slice(0));
+            console.log("[Avatar] TTS bytes:", wavBytes.byteLength);
+
+            const audioBuffer = await head.audioCtx.decodeAudioData(
+                wavBytes.slice(0)
+            );
 
             if (typeof head.speakAudio !== "function") {
               console.error("TalkingHead speakAudio() not available");
               return;
             }
 
+            console.log("[Avatar] Spiele Audio ab…");
             await head.speakAudio({ audio: audioBuffer });
           } catch (err) {
             console.error("avatarSpreche failed:", err);
@@ -256,7 +267,6 @@ export default function Character() {
     return () => {
       disposed = true;
 
-      // Globals aufräumen
       try {
         delete window.avatarSpreche;
         delete window.head;
@@ -264,7 +274,6 @@ export default function Character() {
         console.error("Error cleaning globals:", error);
       }
 
-      // Head-Instanz entsorgen
       try {
         headRef.current?.dispose?.();
       } catch (error) {
@@ -273,7 +282,6 @@ export default function Character() {
         headRef.current = null;
       }
 
-      // Canvas leeren
       try {
         if (containerRef.current) {
           containerRef.current.innerHTML = "";
